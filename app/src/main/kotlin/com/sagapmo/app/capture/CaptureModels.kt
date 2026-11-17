@@ -24,3 +24,10 @@ sealed interface ConnectionResult {
     data class Available(val snapshot: ConnectionSnapshot) : ConnectionResult
     data class Failed(val error: CaptureError) : ConnectionResult
 }
+
+data class LocationAccess(val precise: Boolean, val coarse: Boolean, val servicesEnabled: Boolean)
+data class LocationFix(val latitude: Double, val longitude: Double, val accuracyMetres: Float?, val measuredElapsedMillis: Long)
+sealed interface LocationResult {
+    data class Candidate(val fix: LocationFix) : LocationResult
+    data class Missing(val reason: NoLocationReason) : LocationResult
+}
