@@ -1,0 +1,9 @@
+.worktrees/
+.superpowers/
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml
+.impeccable/review/
+docs/superpowers/verification/screenshots/
