@@ -18,6 +18,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sagapmo.app.capture.*
+import com.sagapmo.app.ui.SagapMoApp
+import com.sagapmo.app.ui.SagapMoTheme
 
 class MainActivity : ComponentActivity() {
     private lateinit var model: SagapMoViewModel
@@ -34,21 +36,7 @@ class MainActivity : ComponentActivity() {
                 (application as SagapMoApplication).database.readings()) as T
         })[SagapMoViewModel::class.java]
         setContent {
-            val state by model.uiState.collectAsStateWithLifecycle()
-            MaterialTheme {
-                Column(Modifier.safeDrawingPadding()) {
-                    Text("SagapMo?")
-                    Text(state.capturePhase.name)
-                    Text(state.savedReading?.toString() ?: state.captureError?.name.orEmpty())
-                    Button(enabled = !state.recording, onClick = ::record) { Text("Record reading") }
-                    if (state.capturePhase == CapturePhase.AWAITING_PERMISSION && !state.permissionLaunched) {
-                        Text("Precise foreground location adds an outdoor pin. A valid signal can still be saved without one.")
-                        Button(onClick = ::requestLocation) { Text("Continue to location") }
-                        TextButton(onClick = model::onPermissionResult) { Text("Save without a pin") }
-                    }
-                    if (state.capturePhase == CapturePhase.SAVE_FAILED) Button(onClick = model::retrySave) { Text("Retry save") }
-                }
-            }
+            SagapMoTheme { SagapMoApp(model, ::record, ::requestLocation, ::openAppSettings) }
         }
     }
     private fun record() {

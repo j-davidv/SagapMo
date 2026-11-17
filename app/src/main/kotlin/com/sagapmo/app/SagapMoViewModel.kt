@@ -130,6 +130,12 @@ class SagapMoViewModel(
         }
     }
     fun dismissCapture() { state.update { it.copy(captureVisible = false) } }
+    fun cancelCapture() {
+        if (state.value.capturePhase in setOf(CapturePhase.AWAITING_PERMISSION, CapturePhase.LOCATING, CapturePhase.ACQUIRING_SIGNAL)) {
+            operationJob?.cancel()
+            state.update { it.copy(capturePhase = CapturePhase.INTERRUPTED, captureVisible = false, permissionLaunched = false) }
+        }
+    }
     fun setFilter(type: ConnectionType?) { state.update { it.copy(filter = type) } }
     fun setDestination(destination: Destination) { state.update { it.copy(destination = destination) } }
     fun openReading(reading: Reading) {
