@@ -1,0 +1,91 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "39bd294129db41a3ec649f491c923edf",
+    "entities": [
+      {
+        "tableName": "readings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `capturedAtEpochMillis` INTEGER NOT NULL, `connectionType` TEXT NOT NULL, `rawSignalValue` INTEGER NOT NULL, `signalUnit` TEXT NOT NULL, `rating` TEXT NOT NULL, `signalAgeMillisAtCapture` INTEGER, `latitude` REAL, `longitude` REAL, `accuracyMetres` REAL, `locationAgeMillisAtCapture` INTEGER, `noLocationReason` TEXT, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "capturedAtEpochMillis",
+            "columnName": "capturedAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "connectionType",
+            "columnName": "connectionType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawSignalValue",
+            "columnName": "rawSignalValue",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "signalUnit",
+            "columnName": "signalUnit",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rating",
+            "columnName": "rating",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "signalAgeMillisAtCapture",
+            "columnName": "signalAgeMillisAtCapture",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "latitude",
+            "columnName": "latitude",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "longitude",
+            "columnName": "longitude",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "accuracyMetres",
+            "columnName": "accuracyMetres",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "locationAgeMillisAtCapture",
+            "columnName": "locationAgeMillisAtCapture",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "noLocationReason",
+            "columnName": "noLocationReason",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '39bd294129db41a3ec649f491c923edf')"
+    ]
+  }
+}

@@ -1,5 +1,8 @@
 package com.sagapmo.app.reading
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
 enum class ConnectionType { WIFI, MOBILE }
 enum class SignalUnit { DBM, ANDROID_LEVEL }
 enum class Rating { GOOD, FAIR, POOR }
@@ -8,8 +11,9 @@ enum class NoLocationReason {
     LOCATION_STALE, LOCATION_INACCURATE, LOCATION_TIMEOUT
 }
 
+@Entity(tableName = "readings")
 data class Reading(
-    val id: String,
+    @PrimaryKey val id: String,
     val capturedAtEpochMillis: Long,
     val connectionType: ConnectionType,
     val rawSignalValue: Int,

@@ -59,3 +59,21 @@ fun assembleReading(id: String, sample: SignalSample, location: LocationResult, 
         eligible?.latitude, eligible?.longitude, eligible?.accuracyMetres,
         eligible?.let { sample.capturedElapsedMillis - it.measuredElapsedMillis }, reason)
 }
+
+fun validateReading(reading: Reading) = with(reading) {
+    require(id.isNotBlank() && capturedAtEpochMillis >= 0)
+    if (connectionType == ConnectionType.WIFI) {
+        require(signalUnit == SignalUnit.DBM && signalAgeMillisAtCapture == null && rateWifi(rawSignalValue) == rating)
+    } else {
+        require(signalUnit == SignalUnit.ANDROID_LEVEL && signalAgeMillisAtCapture != null &&
+            signalAgeMillisAtCapture in 0..60_000 && rateMobile(rawSignalValue, 0, signalAgeMillisAtCapture) == rating)
+    }
+    if (noLocationReason != null) {
+        require(latitude == null && longitude == null && accuracyMetres == null && locationAgeMillisAtCapture == null)
+    } else {
+        require(latitude != null && longitude != null && accuracyMetres != null && locationAgeMillisAtCapture != null)
+        require(locationAgeMillisAtCapture in 0..30_000)
+        require(locationReason(LocationFix(latitude, longitude, accuracyMetres, 0),
+            LocationAccess(true, true, true), locationAgeMillisAtCapture) == null)
+    }
+}
