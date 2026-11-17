@@ -12,6 +12,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sagapmo.app.*
+import com.sagapmo.app.map.CampusMapScreen
 
 @Composable fun SagapMoApp(viewModel: SagapMoViewModel, onRecord: () -> Unit = { viewModel.record(false) },
     onRequestPermission: () -> Unit = {}, onOpenSettings: () -> Unit = {}) {
@@ -44,9 +45,19 @@ import com.sagapmo.app.*
                     }) { padding ->
                     Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
                         if (state.destination == Destination.READINGS) ReadingsScreen(state, onRecord, viewModel::setFilter, viewModel::openReading, viewModel::retryReadings)
-                        else Column {
-                            Filters(state, viewModel::setFilter, Modifier.padding(16.dp))
-                            EmptyState("Map pending implementation", "Development build. Your saved readings are available in Readings.")
+                        else Box(Modifier.fillMaxSize()) {
+                            CampusMapScreen(state.visibleReadings, state.focusedReadingId, viewModel::openReading,
+                                { viewModel.setDestination(Destination.READINGS) })
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Filters(state, viewModel::setFilter)
+                                Surface(shape = RoundedCornerShape(6.dp), shadowElevation = 2.dp) {
+                                    Text("${state.visibleReadings.count { it.latitude != null }} pinned · ${state.visibleReadings.count { it.latitude == null }} without a pin",
+                                        Modifier.padding(10.dp, 6.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            if (state.readingsState == ReadingsState.Failed) Surface(Modifier.align(Alignment.Center).padding(16.dp), shape = RoundedCornerShape(16.dp)) {
+                                EmptyState("Readings could not load", "Your collection has not been reset.", "Retry readings", viewModel::retryReadings)
+                            }
                         }
                     }
                 }
