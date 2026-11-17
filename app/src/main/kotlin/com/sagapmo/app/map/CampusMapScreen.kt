@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.sagapmo.app.reading.Reading
 import com.sagapmo.app.ui.*
 import org.maplibre.compose.camera.CameraPosition
@@ -18,14 +19,82 @@ import org.maplibre.compose.map.*
 import org.maplibre.compose.overlay.*
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Position
+import kotlinx.coroutines.*
+import org.maplibre.compose.resource.MapResourceProvider
 
 private val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421), zoom = 17.0)
 
 @Composable internal fun CampusMapScreen(readings: List<Reading>, focusedReadingId: String?,
     onOpenReading: (Reading) -> Unit, onViewReadings: () -> Unit,
-    runtime: MapRuntime = DefaultMapRuntime.instance,
-    baseStyle: BaseStyle = BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty")) {
-    val map = rememberMapState(runtime = runtime, baseStyle = baseStyle, initialCameraPosition = CampusCamera)
+    runtime: MapRuntime? = null,
+    baseStyle: BaseStyle = BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty"),
+    emptyTitle: String? = null, onShowAll: (() -> Unit)? = null, resourceProvider: MapResourceProvider? = null,
+    topOverlayHeight: Dp = 0.dp) {
+    var attempt by remember { mutableIntStateOf(1) }
+    var camera by remember { mutableStateOf(CampusCamera) }
+    key(attempt) {
+        MapAttempt(readings, focusedReadingId, onOpenReading, onViewReadings, runtime, baseStyle,
+            attempt, camera, { camera = it; attempt++ }, emptyTitle, onShowAll, resourceProvider, topOverlayHeight)
+    }
+}
+
+@Composable private fun MapAttempt(readings: List<Reading>, focusedReadingId: String?, onOpenReading: (Reading) -> Unit,
+    onViewReadings: () -> Unit, runtime: MapRuntime?, baseStyle: BaseStyle, attempt: Int,
+    initialCamera: CameraPosition, onRetry: (CameraPosition) -> Unit, emptyTitle: String?, onShowAll: (() -> Unit)?, resourceProvider: MapResourceProvider?, topOverlayHeight: Dp) {
+    var load by remember { mutableStateOf(MapLoadState(attempt, MapLoadStatus.LOADING)) }
+    var observing by remember { mutableStateOf(false) }
+    var lastFrameFull by remember { mutableStateOf(false) }
+    val failedResources = remember { mutableStateListOf<String>() }
+    val scope = rememberCoroutineScope()
+    val mapRuntime = remember(runtime, resourceProvider) {
+        runtime ?: createMapRuntime {
+            this.resourceProvider = ObservedMapResources(resourceProvider ?: AndroidSpriteResources) { url, failed ->
+                scope.launch(Dispatchers.Main.immediate) {
+                    if (failed) {
+                        if (url !in failedResources) failedResources += url
+                        load = nextMapLoadState(load, MapLoadEvent.STYLE_FAILED, attempt)
+                    } else failedResources.remove(url)
+                }
+            }
+        }
+    }
+    DisposableEffect(mapRuntime) { onDispose { if (runtime == null) mapRuntime.close() } }
+    val map = rememberMapState(runtime = mapRuntime, baseStyle = baseStyle, initialCameraPosition = initialCamera)
+    LaunchedEffect(map) {
+        withContext(Dispatchers.Main.immediate) {
+            launch(start = CoroutineStart.UNDISPATCHED) {
+                map.events.collect { event ->
+                    if (event is MapEvent.FrameRendered) lastFrameFull = event.stats?.mode == RenderStats.Mode.Full
+                    val next = when (event) {
+                        is MapEvent.StyleLoadFailed -> MapLoadEvent.STYLE_FAILED
+                        is MapEvent.FrameRendered -> when (event.stats?.mode) {
+                            RenderStats.Mode.Full -> if (map.style.loadState == StyleLoadState.Ready && failedResources.isEmpty()) MapLoadEvent.FULL_FRAME else null
+                            RenderStats.Mode.Partial -> MapLoadEvent.PARTIAL_FRAME
+                            else -> null
+                        }
+                        else -> null
+                    }
+                    if (next != null) load = nextMapLoadState(load, next, attempt)
+                }
+            }
+            observing = true
+            awaitCancellation()
+        }
+    }
+    LaunchedEffect(map) {
+        snapshotFlow { Triple(map.style.loadState, lastFrameFull, failedResources.isEmpty()) }.collect { (style, fullFrame, resourcesReady) ->
+            if (style is StyleLoadState.Failed) load = nextMapLoadState(load, MapLoadEvent.STYLE_FAILED, attempt)
+            else if (style == StyleLoadState.Ready && fullFrame && resourcesReady) load = nextMapLoadState(load, MapLoadEvent.FULL_FRAME, attempt)
+        }
+    }
+    LaunchedEffect(load.status) {
+        if (load.status == MapLoadStatus.LOADING) {
+            withContext(Dispatchers.Main.immediate) {
+                delay(15_000)
+                load = nextMapLoadState(load, MapLoadEvent.DEADLINE, attempt)
+            }
+        }
+    }
     LaunchedEffect(focusedReadingId) {
         readings.find { it.id == focusedReadingId && it.latitude != null && it.longitude != null }?.let {
             map.setCameraPosition(CameraPosition(center = Position(it.longitude!!, it.latitude!!), zoom = 18.0))
@@ -33,7 +102,7 @@ private val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421)
     }
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            MaplibreMap(state = map, modifier = Modifier.fillMaxSize()) {
+            if (observing) MaplibreMap(state = map, modifier = Modifier.fillMaxSize().testTag("map-surface"), viewportInsets = PaddingValues(top = topOverlayHeight)) {
                 include(MapOverlay.Default)
                 readings.filter { it.latitude != null && it.longitude != null }.forEach { reading ->
                     SamplePin(reading, Modifier.placedAt(Position(reading.longitude!!, reading.latitude!!), alignment = Alignment.BottomCenter)) {
@@ -41,7 +110,15 @@ private val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421)
                     }
                 }
             }
-            Surface(Modifier.align(Alignment.TopEnd).padding(top = 104.dp, end = 16.dp), shape = RoundedCornerShape(12.dp), shadowElevation = 3.dp) {
+            if (load.status == MapLoadStatus.READY && emptyTitle != null) Box(Modifier.fillMaxSize().padding(top = topOverlayHeight)) { Surface(
+                Modifier.align(Alignment.Center).padding(16.dp), shape = RoundedCornerShape(16.dp)) {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    EmptyState(emptyTitle, if (onShowAll == null) "Record your first signal sample. A usable outdoor location adds a pin."
+                        else "This filter has no samples. Your other readings are still saved.",
+                        if (onShowAll == null) null else "Show all readings", { onShowAll?.invoke() })
+                }
+            } }
+            Surface(Modifier.align(Alignment.TopEnd).padding(top = maxOf(topOverlayHeight, 16.dp), end = 16.dp), shape = RoundedCornerShape(12.dp), shadowElevation = 3.dp) {
                 IconButton(onClick = { map.setCameraPosition(CampusCamera) }, modifier = Modifier.size(48.dp)) {
                     AppIcon(AppSymbol.TARGET, "Return to campus overview")
                 }
@@ -56,6 +133,22 @@ private val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421)
                         }
                     }
                 }
+            }
+            when (load.status) {
+                MapLoadStatus.LOADING -> Surface(Modifier.align(Alignment.BottomCenter).padding(12.dp).testTag("map-loading"), shape = RoundedCornerShape(6.dp)) {
+                    Text("Loading map… Readings are still available.", Modifier.padding(10.dp, 8.dp), style = MaterialTheme.typography.bodySmall)
+                }
+                MapLoadStatus.FAILED -> Box(Modifier.fillMaxSize().padding(top = topOverlayHeight)) { Surface(Modifier.align(Alignment.Center).padding(16.dp).testTag("map-error"), shape = RoundedCornerShape(16.dp)) {
+                    Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp).semantics { liveRegion = LiveRegionMode.Polite }, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Map could not load", style = MaterialTheme.typography.titleSmall)
+                        Text("Your saved readings are still available. You can record a valid signal even if map tiles fail.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton({ onRetry(map.cameraPosition) }, Modifier.heightIn(min = 48.dp), shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)) { Text("Retry map") }
+                            TextButton(onViewReadings, Modifier.heightIn(min = 48.dp)) { Text("View readings") }
+                        }
+                    }
+                } }
+                MapLoadStatus.READY -> Box(Modifier.testTag("map-ready"))
             }
         }
         Text("OpenFreeMap · OpenMapTiles · © OpenStreetMap", Modifier.fillMaxWidth().padding(12.dp, 4.dp),

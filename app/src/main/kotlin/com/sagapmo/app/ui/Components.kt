@@ -13,6 +13,9 @@ import androidx.compose.ui.graphics.vector.*
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.*
+import androidx.compose.ui.text.font.FontWeight
 import com.sagapmo.app.AppUiState
 import com.sagapmo.app.reading.*
 import java.time.*
@@ -82,7 +85,10 @@ fun NoLocationReason.explanation() = when (this) {
                     modifier = Modifier.widthIn(min = chipWidth).heightIn(min = 48.dp).testTag("filter-${type?.name ?: "ALL"}"),
                     shape = RoundedCornerShape(10.dp),
                     colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.secondary,
+                        containerColor = MaterialTheme.colorScheme.surface, labelColor = MaterialTheme.colorScheme.onSurface,
+                        iconColor = MaterialTheme.colorScheme.onSurface,
                         selectedLabelColor = MaterialTheme.colorScheme.onSecondary, selectedLeadingIconColor = MaterialTheme.colorScheme.onSecondary),
+                    border = BorderStroke(1.dp, if (state.filter == type) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline),
                     leadingIcon = type?.let { { AppIcon(it.symbol(), modifier = Modifier.size(18.dp)) } },
                     label = {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -93,6 +99,14 @@ fun NoLocationReason.explanation() = when (this) {
             }
         }
     }
+}
+@Composable fun SignalValue(reading: Reading) {
+    Text(buildAnnotatedString {
+        if (reading.connectionType == ConnectionType.WIFI) {
+            append(reading.rawSignalValue.toString())
+            withStyle(SpanStyle(fontSize = 18.sp, fontWeight = FontWeight.Medium)) { append(" dBm") }
+        } else append(reading.rawDisplay())
+    }, style = MaterialTheme.typography.headlineLarge)
 }
 @Composable fun PrimaryAction(label: String, onClick: () -> Unit, enabled: Boolean = true, symbol: AppSymbol? = null) {
     Button(onClick, Modifier.fillMaxWidth().heightIn(min = 52.dp), enabled = enabled,

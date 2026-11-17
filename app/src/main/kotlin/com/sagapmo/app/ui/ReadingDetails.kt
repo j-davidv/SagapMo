@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import com.sagapmo.app.reading.*
 import java.time.*
 import java.util.Locale
+import androidx.compose.ui.text.font.FontWeight
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun ReadingDetails(reading: Reading, onDismiss: () -> Unit, onShowOnMap: (Reading) -> Unit,
@@ -29,7 +30,7 @@ import java.util.Locale
                     Text("Saved sample", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Text(reading.rawDisplay(), style = MaterialTheme.typography.headlineLarge)
+            SignalValue(reading)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 RatingLabel(reading.rating)
                 Text(reading.fullTime(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -39,13 +40,15 @@ import java.util.Locale
             if (reading.noLocationReason == null) {
                 Column {
                     DetailRow("Coordinates", String.format(Locale.US, "%.5f, %.5f", reading.latitude, reading.longitude))
-                    DetailRow("Reported accuracy", "±${reading.accuracyMetres} metres")
-                    DetailRow("Location age at capture", "${reading.locationAgeMillisAtCapture!! / 1000.0} seconds")
-                    DetailRow("Signal age at capture", reading.signalAgeMillisAtCapture?.let { "${it / 1000.0} seconds" } ?: "Unavailable for Wi-Fi")
+                    DetailRow("Reported accuracy", "±${reading.accuracyMetres.toString().removeSuffix(".0")} metres")
+                    DetailRow("Location age at capture", "${(reading.locationAgeMillisAtCapture!! / 1000.0).toString().removeSuffix(".0")} seconds")
+                    DetailRow("Signal age at capture", reading.signalAgeMillisAtCapture?.let { "${(it / 1000.0).toString().removeSuffix(".0")} seconds" } ?: "Unavailable for Wi-Fi")
                 }
             } else {
-                Text(reading.noLocationReason.explanation(), style = MaterialTheme.typography.bodyMedium)
+                DetailRow("Map pin", "Not available")
                 DetailRow("Signal age at capture", reading.signalAgeMillisAtCapture?.let { "${it / 1000.0} seconds" } ?: "Unavailable for Wi-Fi")
+                InfoBox("Saved without a pin", reading.noLocationReason.explanation(), warning = true)
+                Text("This reading stays in your list. A later location will belong to a new reading.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (reading.noLocationReason in setOf(NoLocationReason.PERMISSION_DENIED, NoLocationReason.APPROXIMATE_ONLY)) {
                     TextButton(onOpenSettings, Modifier.heightIn(min = 48.dp)) { Text("Open app settings") }
                 }
@@ -53,14 +56,26 @@ import java.util.Locale
             if (reading.connectionType == ConnectionType.WIFI) Text("Wi-Fi measurement age unavailable. Android does not provide a timestamp for this RSSI value.",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (reading.latitude != null) PrimaryAction("Show on map", { onShowOnMap(reading) }, symbol = AppSymbol.MAP)
+            else PrimaryAction("Back to readings", onDismiss)
         }
     }
 }
 
-@Composable internal fun SheetHeading(title: String, closeLabel: String, onDismiss: () -> Unit) {
+@Composable internal fun SheetHeading(title: String, closeLabel: String, onDismiss: () -> Unit, closable: Boolean = true) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
-        IconButton(onDismiss, Modifier.size(48.dp)) { AppIcon(AppSymbol.CLOSE, closeLabel) }
+        if (closable) FilledTonalIconButton(onDismiss, Modifier.size(48.dp),
+            colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface)) { AppIcon(AppSymbol.CLOSE, closeLabel) }
+    }
+}
+@Composable internal fun InfoBox(title: String, text: String, warning: Boolean = false) {
+    val ratings = LocalRatingColors.current
+    Surface(shape = RoundedCornerShape(10.dp), color = if (warning) ratings.fairBg else MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = if (warning) ratings.fair else MaterialTheme.colorScheme.onSurfaceVariant) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(title, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+            Text(text, style = MaterialTheme.typography.bodyMedium)
+        }
     }
 }
 @Composable private fun DetailRow(label: String, value: String) {
