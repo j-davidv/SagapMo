@@ -1,6 +1,6 @@
 # SagapMo? pilot design
 
-Date 2026-11-17. Status ready for review. Implementation starts after separate user direction.
+Date 2026-11-17. Approved by the user on 2026-11-17. Implementation starts after separate user direction.
 
 ## Purpose and success
 
