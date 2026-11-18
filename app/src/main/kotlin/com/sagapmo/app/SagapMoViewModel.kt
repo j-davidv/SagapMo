@@ -27,6 +27,8 @@ data class AppUiState(
     val focusedReadingId: String? = null,
     val captureVisible: Boolean = false,
     val permissionLaunched: Boolean = false,
+    val descriptionSavingId: String? = null,
+    val descriptionErrorId: String? = null,
 ) {
     val allReadings get() = (readingsState as? ReadingsState.Loaded)?.readings.orEmpty()
     val visibleReadings get() = allReadings.filter { filter == null || it.connectionType == filter }
@@ -44,6 +46,7 @@ class SagapMoViewModel(
     private var operationId: String? = null
     private var operationJob: Job? = null
     private var readingsJob: Job? = null
+    private val descriptionJobs = mutableMapOf<String, Job>()
 
     init { retryReadings() }
 
@@ -137,12 +140,59 @@ class SagapMoViewModel(
         }
     }
     fun setFilter(type: ConnectionType?) { state.update { it.copy(filter = type) } }
+    suspend fun deleteReading(reading: Reading): Boolean = try {
+        withContext(ioDispatcher) { dao.deleteById(reading.id) }
+        state.update { it.copy(
+            selectedReading = it.selectedReading?.takeUnless { row -> row.id == reading.id },
+            focusedReadingId = it.focusedReadingId?.takeUnless { id -> id == reading.id },
+            savedReading = it.savedReading?.takeUnless { row -> row.id == reading.id }) }
+        true
+    } catch (error: CancellationException) { throw error }
+    catch (_: Exception) { false }
+
+    suspend fun restoreReading(reading: Reading): Boolean = try {
+        withContext(ioDispatcher) { dao.save(reading) }
+        true
+    } catch (error: CancellationException) { throw error }
+    catch (_: Exception) { false }
     fun setDestination(destination: Destination) { state.update { it.copy(destination = destination) } }
     fun openReading(reading: Reading) {
         state.update { it.copy(selectedReading = reading, captureVisible = false,
             filter = it.filter?.takeIf { type -> type == reading.connectionType }) }
     }
     fun closeDetails() { state.update { it.copy(selectedReading = null) } }
+    fun updateLocationDescription(id: String, description: String) {
+        descriptionJobs[id]?.cancel()
+        state.update { it.copy(descriptionSavingId = id, descriptionErrorId = null) }
+        descriptionJobs[id] = viewModelScope.launch {
+            delay(400)
+            val saved = setLocationDescription(id, description)
+            state.update { current -> current.copy(
+                descriptionSavingId = current.descriptionSavingId?.takeUnless { it == id },
+                descriptionErrorId = if (saved) current.descriptionErrorId else id) }
+            descriptionJobs.remove(id)
+        }
+    }
+    suspend fun setLocationDescription(id: String, description: String): Boolean = try {
+        require(description.length <= 200)
+        val text = description.trim()
+        check(withContext(ioDispatcher) { dao.setLocationDescription(id, text) } == 1)
+        state.update { current -> current.copy(
+            selectedReading = current.selectedReading?.let { if (it.id == id) it.copy(locationDescription = text) else it },
+            savedReading = current.savedReading?.let { if (it.id == id) it.copy(locationDescription = text) else it }) }
+        true
+    } catch (error: CancellationException) { throw error }
+    catch (_: Exception) { false }
+    suspend fun setManualLocation(reading: Reading, latitude: Double, longitude: Double): Boolean = try {
+        val updated = reading.copy(latitude = latitude, longitude = longitude, accuracyMetres = null,
+            locationAgeMillisAtCapture = null, noLocationReason = null, locationManuallySet = true)
+        validateReading(updated)
+        check(withContext(ioDispatcher) { dao.setManualLocation(reading.id, latitude, longitude) } == 1)
+        state.update { it.copy(selectedReading = it.selectedReading?.let { row -> if (row.id == reading.id) updated else row },
+            savedReading = it.savedReading?.let { row -> if (row.id == reading.id) updated else row }) }
+        true
+    } catch (error: CancellationException) { throw error }
+    catch (_: Exception) { false }
     fun showOnMap(reading: Reading) {
         if (reading.latitude == null || reading.longitude == null) return
         state.update { it.copy(destination = Destination.MAP, selectedReading = null, focusedReadingId = reading.id,

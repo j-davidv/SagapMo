@@ -1,0 +1,422 @@
+<!DOCTYPE html><html class="light" lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><meta content="mobile_tab" name="shell-type"><title>SagapMo? - Campus Signal Logger</title><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Space+Grotesk:wght@600;700&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "error": "#ba1a1a", "on-tertiary-fixed": "#2f1500", "on-secondary-container": "#00714e", "secondary": "#006c4a", "on-tertiary-fixed-variant": "#6e3900", "outline-variant": "#e2bebe", "primary-fixed": "#ffdada", "tertiary-container": "#7c4100", "tertiary-fixed-dim": "#ffb77d", "surface-container-lowest": "#ffffff", "error-container": "#ffdad6", "on-primary-fixed-variant": "#920025", "primary-fixed-dim": "#ffb3b4", "surface-bright": "#faf8ff", "on-primary-container": "#ffaeb0", "on-primary-fixed": "#40000b", "surface-container-low": "#f2f3ff", "on-surface": "#131b2e", "surface-tint": "#b71e38", "on-secondary-fixed-variant": "#005137", "surface-variant": "#dae2fd", "inverse-surface": "#283044", "background": "#faf8ff", "surface-dim": "#d2d9f4", "primary": "#79001d", "on-primary": "#ffffff", "inverse-primary": "#ffb3b4", "on-error-container": "#93000a", "on-error": "#ffffff", "primary-container": "#a3082c", "on-surface-variant": "#5a4041", "secondary-container": "#85f5c1", "on-tertiary": "#ffffff", "surface-container": "#eaedff", "surface-container-highest": "#dae2fd", "tertiary-fixed": "#ffdcc3", "secondary-fixed": "#88f8c4", "inverse-on-surface": "#eef0ff", "outline": "#8e7070", "on-secondary": "#ffffff", "surface-container-high": "#e2e7ff", "on-background": "#131b2e", "on-tertiary-container": "#ffb273", "on-secondary-fixed": "#002114", "tertiary": "#5a2e00", "secondary-fixed-dim": "#6bdba9", "surface": "#faf8ff" }, borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, spacing: { "space-md": "0.75rem", "space-sm": "0.5rem", "margin-sm": "0.75rem", "space-xl": "1.5rem", "space-lg": "1rem", "space-2xs": "0.25rem", "space-2xl": "2rem", "gutter": "1rem", "space-xs": "0.375rem", "gutter-sm": "0.5rem", "margin": "1rem", "margin-lg": "1.5rem", "gutter-lg": "1.5rem" }, fontFamily: { "title-md": ["Plus Jakarta Sans"], "label-lg": ["Space Grotesk"], "headline-sm": ["Space Grotesk"], "label-sm": ["Space Grotesk"], "metric-display": ["Space Grotesk"], "body-sm": ["Plus Jakarta Sans"], "body-md": ["Plus Jakarta Sans"], "headline-xl": ["Space Grotesk"], "headline-lg": ["Space Grotesk"], "body-lg": ["Plus Jakarta Sans"], "label-md": ["Space Grotesk"], "headline-md": ["Space Grotesk"] }, fontSize: { "title-md": ["16px", { lineHeight: "22px", fontWeight: "600" }], "label-lg": ["14px", { lineHeight: "18px", letterSpacing: "0.02em", fontWeight: "700" }], "headline-sm": ["18px", { lineHeight: "24px", fontWeight: "600" }], "label-sm": ["10px", { lineHeight: "14px", letterSpacing: "0.06em", fontWeight: "700" }], "metric-display": ["36px", { lineHeight: "42px", letterSpacing: "-0.03em", fontWeight: "700" }], "body-sm": ["12px", { lineHeight: "16px", fontWeight: "500" }], "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }], "headline-xl": ["32px", { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "700" }], "headline-lg": ["26px", { lineHeight: "32px", letterSpacing: "-0.015em", fontWeight: "700" }], "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }], "label-md": ["12px", { lineHeight: "16px", letterSpacing: "0.04em", fontWeight: "600" }], "headline-md": ["20px", { lineHeight: "26px", fontWeight: "600" }] } } } }</script><style>@layer base { html, body { width: 100vw; margin: 0; padding: 0; min-height: 100vh; } body { overscroll-behavior-y: none; } .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); } .pt-safe { padding-top: env(safe-area-inset-top, 0px); } main > :first-child { margin-top: 0 !important; } main > :last-child { margin-bottom: 0 !important; } } ::-webkit-scrollbar { display: none; }</style><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface text-on-surface font-body-md text-body-md antialiased flex flex-col min-h-screen selection:bg-primary-fixed-dim selection:text-on-primary-fixed"><header class="fixed top-0 w-full z-50 pt-safe bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-margin flex items-center justify-between gap-space-sm"><div class="flex items-center gap-space-sm min-w-0"><img alt="SagapMo Logo" class="h-8 w-auto object-contain shrink-0" src="https://lh3.googleusercontent.com/aida-embedded-content/AP61F-yFfI3F_O3iOa3Kq_1tL_aWz8Xp8S-Wp4Zf0p4n5z6k8L7J3R1v2M8K"><div class="flex flex-col min-w-0"><div class="flex items-center gap-space-2xs"><span class="font-label-lg text-label-lg tracking-tight text-primary font-bold truncate">SagapMo?</span><span class="w-1.5 h-1.5 rounded-full bg-secondary shrink-0" title="Telemetry Active"></span></div><span class="font-label-sm text-label-sm text-on-surface-variant truncate uppercase tracking-wider">BatState-U Alangilan</span></div></div><div class="flex items-center gap-space-xs shrink-0"><button type="button" aria-label="Toggle dark mode" class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-variant transition-colors" onclick="document.documentElement.classList.toggle('dark')"><span class="material-symbols-outlined text-[20px]">dark_mode</span></button></div></div></header><main class="flex flex-col relative w-full pt-16 bg-surface min-h-screen pb-24"><div class="flex flex-col w-full pb-20">
+<!-- Offline Database Status Banner -->
+<div class="px-margin pt-space-md pb-space-xs">
+<div class="bg-surface-container-low rounded-xl p-space-md flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-secondary-fixed text-[20px]" style="font-variation-settings: &quot;FILL&quot; 1;">cloud_sync</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-2xs">
+<span class="font-headline-sm text-headline-sm text-on-surface truncate">Offline Room DB</span>
+<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-label-sm font-label-sm bg-secondary-container text-on-secondary-container">Synced</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">14 readings stored locally on this phone</span>
+</div>
+</div>
+<button class="shrink-0 h-10 px-space-sm rounded-lg bg-surface-container text-primary font-label-sm text-label-sm flex items-center gap-1 active:scale-95 transition-all" id="syncTelemetryBtn" type="button">
+<span class="material-symbols-outlined text-[16px]">sync</span>
+<span>EXPORT</span>
+</button>
+</div>
+</div>
+<!-- Sticky Filter Bar -->
+<div class="sticky top-16 z-30 bg-surface/95 backdrop-blur-md px-margin py-space-sm shadow-sm">
+<div class="flex items-center gap-space-xs overflow-x-auto no-scrollbar">
+<button class="filter-chip h-10 px-space-md rounded-full bg-on-surface text-surface-bright font-label-md text-label-md flex items-center gap-space-xs shrink-0 shadow-sm transition-all" data-filter="all" type="button">
+<span class="material-symbols-outlined text-[18px]">select_all</span>
+<span>All</span>
+<span class="px-1.5 py-0.2 rounded-full bg-surface-container-lowest/20 text-label-sm font-label-sm">14</span>
+</button>
+<button class="filter-chip h-10 px-space-md rounded-full bg-surface-container-highest text-on-surface font-label-md text-label-md flex items-center gap-space-xs shrink-0 hover:bg-surface-variant transition-all" data-filter="wifi" type="button">
+<span class="material-symbols-outlined text-[18px]">wifi</span>
+<span>Wi-Fi</span>
+<span class="px-1.5 py-0.2 rounded-full bg-surface-container-low text-label-sm font-label-sm">9</span>
+</button>
+<button class="filter-chip h-10 px-space-md rounded-full bg-surface-container-highest text-on-surface font-label-md text-label-md flex items-center gap-space-xs shrink-0 hover:bg-surface-variant transition-all" data-filter="mobile" type="button">
+<span class="material-symbols-outlined text-[18px]">signal_cellular_alt</span>
+<span>Mobile</span>
+<span class="px-1.5 py-0.2 rounded-full bg-surface-container-low text-label-sm font-label-sm">5</span>
+</button>
+<div class="ml-auto shrink-0 pl-space-xs flex items-center">
+<button class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface active:bg-surface-variant" id="sortOrderBtn" title="Toggle Sort Order" type="button">
+<span class="material-symbols-outlined text-[20px]">sort</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Telemetry Readings Feed -->
+<div class="px-margin pt-space-xs flex flex-col gap-space-sm" id="readingsFeed">
+<!-- Reading 1: Wi-Fi GOOD -->
+<article class="reading-card bg-surface-container-lowest rounded-xl p-space-md shadow-sm transition-all active:scale-[0.99] flex flex-col gap-space-xs cursor-pointer" data-category="wifi">
+<div class="flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs min-w-0">
+<div class="w-8 h-8 rounded-lg bg-secondary-fixed flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-secondary-fixed text-[18px]" style="font-variation-settings: &quot;FILL&quot; 1;">wifi</span>
+</div>
+<div class="flex flex-col min-w-0">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate">BatStateU-WiFi</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Wi-Fi • Channel 36 (5 GHz)</span>
+</div>
+</div>
+<div class="flex flex-col items-end shrink-0">
+<span class="px-2 py-0.5 rounded-full font-label-sm text-label-sm bg-secondary-container text-on-secondary-container flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+            GOOD
+          </span>
+<span class="font-label-lg text-label-lg text-secondary font-bold tabular-nums mt-0.5">-62 dBm</span>
+</div>
+</div>
+<div class="bg-surface-container-low rounded-lg p-space-xs flex items-center justify-between gap-space-sm text-on-surface-variant">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-secondary text-[16px] shrink-0" style="font-variation-settings: &quot;FILL&quot; 1;">near_me</span>
+<span class="font-body-sm text-body-sm truncate text-on-surface">13.78422, 121.07431</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant shrink-0">(±5m)</span>
+</div>
+<span class="inline-flex items-center gap-1 text-label-sm font-label-sm text-primary shrink-0">
+<span class="material-symbols-outlined text-[14px]">map</span>
+<span>On map</span>
+</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant pt-0.5">
+<span class="font-body-sm text-body-sm">Today, 10:42 AM</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Synchronized</span>
+</div>
+</article>
+<!-- Reading 2: Mobile FAIR -->
+<article class="reading-card bg-surface-container-lowest rounded-xl p-space-md shadow-sm transition-all active:scale-[0.99] flex flex-col gap-space-xs cursor-pointer" data-category="mobile">
+<div class="flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs min-w-0">
+<div class="w-8 h-8 rounded-lg bg-tertiary-fixed flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-tertiary-fixed text-[18px]">cell_tower</span>
+</div>
+<div class="flex flex-col min-w-0">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate">Smart / 4G</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant">eNodeB 41209 • Band 28 (700 MHz)</span>
+</div>
+</div>
+<div class="flex flex-col items-end shrink-0">
+<span class="px-2 py-0.5 rounded-full font-label-sm text-label-sm bg-tertiary-fixed-dim text-on-tertiary-fixed flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+            FAIR
+          </span>
+<span class="font-label-lg text-label-lg text-tertiary font-bold tabular-nums mt-0.5">Level 2/4</span>
+</div>
+</div>
+<div class="bg-surface-container-low rounded-lg p-space-xs flex items-center justify-between gap-space-sm text-on-surface-variant">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-tertiary text-[16px] shrink-0">pin_drop</span>
+<span class="font-body-sm text-body-sm truncate text-on-surface">13.78390, 121.07410</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant shrink-0">(±14m)</span>
+</div>
+<span class="inline-flex items-center gap-1 text-label-sm font-label-sm text-primary shrink-0">
+<span class="material-symbols-outlined text-[14px]">map</span>
+<span>On map</span>
+</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant pt-0.5">
+<div class="flex items-center gap-space-2xs">
+<span class="font-body-sm text-body-sm">Today, 10:15 AM</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Age: 12s</span>
+</div>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">RSRP -98 dBm</span>
+</div>
+</article>
+<!-- Reading 3: Wi-Fi POOR (Approximate Location) -->
+<article class="reading-card bg-surface-container-lowest rounded-xl p-space-md shadow-sm transition-all active:scale-[0.99] flex flex-col gap-space-xs cursor-pointer" data-category="wifi">
+<div class="flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs min-w-0">
+<div class="w-8 h-8 rounded-lg bg-error-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-error-container text-[18px]">wifi_tethering_off</span>
+</div>
+<div class="flex flex-col min-w-0">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate">BatStateU-Guest</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Wi-Fi • Channel 6 (2.4 GHz)</span>
+</div>
+</div>
+<div class="flex flex-col items-end shrink-0">
+<span class="px-2 py-0.5 rounded-full font-label-sm text-label-sm bg-error-container text-on-error-container flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+            POOR
+          </span>
+<span class="font-label-lg text-label-lg text-error font-bold tabular-nums mt-0.5">-79 dBm</span>
+</div>
+</div>
+<div class="bg-error-container/30 rounded-lg p-space-xs flex items-center gap-1.5 text-on-error-container">
+<span class="material-symbols-outlined text-[16px] text-error shrink-0">wrong_location</span>
+<span class="font-body-sm text-body-sm truncate font-medium">Location unavailable: APPROXIMATE_ONLY</span>
+<span class="ml-auto px-1.5 py-0.2 rounded text-label-sm font-label-sm bg-error-container text-on-error-container shrink-0">No pin</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant pt-0.5">
+<span class="font-body-sm text-body-sm">Today, 09:30 AM</span>
+<span class="font-label-sm text-label-sm text-error uppercase tracking-wider">High packet loss</span>
+</div>
+</article>
+<!-- Reading 4: Mobile GOOD -->
+<article class="reading-card bg-surface-container-lowest rounded-xl p-space-md shadow-sm transition-all active:scale-[0.99] flex flex-col gap-space-xs cursor-pointer" data-category="mobile">
+<div class="flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs min-w-0">
+<div class="w-8 h-8 rounded-lg bg-secondary-fixed flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-secondary-fixed text-[18px]">5g</span>
+</div>
+<div class="flex flex-col min-w-0">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate">Globe Telecom / 5G</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant">gNodeB 88310 • Band n78 (3.5 GHz)</span>
+</div>
+</div>
+<div class="flex flex-col items-end shrink-0">
+<span class="px-2 py-0.5 rounded-full font-label-sm text-label-sm bg-secondary-container text-on-secondary-container flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+            GOOD
+          </span>
+<span class="font-label-lg text-label-lg text-secondary font-bold tabular-nums mt-0.5">Level 4/4</span>
+</div>
+</div>
+<div class="bg-surface-container-low rounded-lg p-space-xs flex items-center justify-between gap-space-sm text-on-surface-variant">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-secondary text-[16px] shrink-0" style="font-variation-settings: &quot;FILL&quot; 1;">near_me</span>
+<span class="font-body-sm text-body-sm truncate text-on-surface">13.78455, 121.07460</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant shrink-0">(±8m)</span>
+</div>
+<span class="inline-flex items-center gap-1 text-label-sm font-label-sm text-primary shrink-0">
+<span class="material-symbols-outlined text-[14px]">map</span>
+<span>On map</span>
+</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant pt-0.5">
+<div class="flex items-center gap-space-2xs">
+<span class="font-body-sm text-body-sm">Yesterday, 4:15 PM</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Age: 4s</span>
+</div>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">RSRP -74 dBm</span>
+</div>
+</article>
+<!-- Reading 5: Wi-Fi FAIR -->
+<article class="reading-card bg-surface-container-lowest rounded-xl p-space-md shadow-sm transition-all active:scale-[0.99] flex flex-col gap-space-xs cursor-pointer" data-category="wifi">
+<div class="flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs min-w-0">
+<div class="w-8 h-8 rounded-lg bg-tertiary-fixed flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-tertiary-fixed text-[18px]">wifi</span>
+</div>
+<div class="flex flex-col min-w-0">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate">BatStateU-CICS</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Wi-Fi • Channel 149 (5 GHz)</span>
+</div>
+</div>
+<div class="flex flex-col items-end shrink-0">
+<span class="px-2 py-0.5 rounded-full font-label-sm text-label-sm bg-tertiary-fixed-dim text-on-tertiary-fixed flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+            FAIR
+          </span>
+<span class="font-label-lg text-label-lg text-tertiary font-bold tabular-nums mt-0.5">-71 dBm</span>
+</div>
+</div>
+<div class="bg-surface-container-low rounded-lg p-space-xs flex items-center justify-between gap-space-sm text-on-surface-variant">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-tertiary text-[16px] shrink-0">pin_drop</span>
+<span class="font-body-sm text-body-sm truncate text-on-surface">13.78415, 121.07425</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant shrink-0">(±18m)</span>
+</div>
+<span class="inline-flex items-center gap-1 text-label-sm font-label-sm text-primary shrink-0">
+<span class="material-symbols-outlined text-[14px]">map</span>
+<span>On map</span>
+</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant pt-0.5">
+<span class="font-body-sm text-body-sm">Yesterday, 2:00 PM</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">CEAFA 2nd Flr</span>
+</div>
+</article>
+</div>
+<!-- Interactive Empty State (Hidden initially, triggered via toggle) -->
+<div class="hidden px-margin py-space-2xl flex-col items-center justify-center text-center" id="emptyState">
+<div class="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant mb-space-md">
+<span class="material-symbols-outlined text-[32px]">signal_cellular_nodata</span>
+</div>
+<h4 class="font-headline-md text-headline-md text-on-surface">No local telemetry records</h4>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-xs mt-space-2xs">
+      Walk near campus towers or engineering buildings to log your first live RF point.
+    </p>
+<button class="mt-space-lg h-12 px-space-xl rounded-lg bg-surface-container-high text-primary font-label-lg text-label-lg flex items-center gap-space-xs active:bg-surface-variant transition-all" id="reloadDbBtn" type="button">
+<span class="material-symbols-outlined text-[20px]">refresh</span>
+<span>RETRY ROOM QUERY</span>
+</button>
+</div>
+<!-- Bottom Sheet Sample Action Trigger (Floating Anchor) -->
+<div class="fixed bottom-20 left-0 right-0 px-margin flex items-center justify-end pointer-events-none z-40">
+<button class="pointer-events-auto h-14 px-space-xl rounded-full bg-primary-container text-on-primary shadow-xl flex items-center gap-space-sm active:scale-95 transition-all" id="recordReadingFab" type="button">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: &quot;FILL&quot; 1;">sensors</span>
+<span class="font-label-lg text-label-lg uppercase tracking-wide">Record Reading</span>
+</button>
+</div>
+<!-- Detail Inspector Dialog / Sheet (Hidden overlay) -->
+<div class="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-sm hidden flex-col justify-end" id="inspectorModal">
+<div class="w-full bg-surface-container-lowest rounded-t-2xl p-space-lg flex flex-col gap-space-md shadow-2xl animate-in slide-in-from-bottom duration-200">
+<!-- Drag pill -->
+<div class="w-10 h-1 bg-surface-variant rounded-full mx-auto"></div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-xl bg-secondary-fixed flex items-center justify-center" id="inspectorIconWrap">
+<span class="material-symbols-outlined text-on-secondary-fixed" id="inspectorIcon">wifi</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface" id="inspectorTitle">BatStateU-WiFi</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant" id="inspectorSub">Logged Room Query Details</span>
+</div>
+</div>
+<button class="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant" id="closeInspectorBtn" type="button">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- Quick Metrics Grid -->
+<div class="grid grid-cols-2 gap-space-sm pt-space-xs">
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">RAW SIGNAL LEVEL</span>
+<span class="font-metric-display text-metric-display text-primary mt-1 font-bold" id="inspectorMetric">-62 dBm</span>
+<span class="font-body-sm text-body-sm text-secondary font-medium">Acceptable for VoIP &amp; Video</span>
+</div>
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col justify-between">
+<div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">GEODETIC FIX</span>
+<span class="font-label-md text-label-md text-on-surface block mt-1">±5m Confidence</span>
+</div>
+<div class="flex items-center gap-1 text-primary pt-2">
+<span class="material-symbols-outlined text-[16px]">pin_drop</span>
+<span class="font-label-sm text-label-sm">Near Alangilan Gym</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm pt-space-xs">
+<button class="flex-1 h-12 rounded-lg bg-primary-container text-on-primary font-label-lg text-label-lg flex items-center justify-center gap-2" id="viewOnMapAction" type="button">
+<span class="material-symbols-outlined text-[18px]">location_searching</span>
+<span>LOCATE ON MAP</span>
+</button>
+<button class="w-12 h-12 rounded-lg bg-error-container text-on-error-container flex items-center justify-center" id="deleteEntryBtn" type="button">
+<span class="material-symbols-outlined text-[20px]">delete_outline</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<script>
+  (function initSagapMoReadings() {
+    const filterChips = document.querySelectorAll('.filter-chip');
+    const readingCards = document.querySelectorAll('.reading-card');
+    const emptyState = document.getElementById('emptyState');
+    const readingsFeed = document.getElementById('readingsFeed');
+    const inspectorModal = document.getElementById('inspectorModal');
+    const closeInspectorBtn = document.getElementById('closeInspectorBtn');
+    const inspectorTitle = document.getElementById('inspectorTitle');
+    const inspectorMetric = document.getElementById('inspectorMetric');
+    const reloadDbBtn = document.getElementById('reloadDbBtn');
+    const recordReadingFab = document.getElementById('recordReadingFab');
+    const sortOrderBtn = document.getElementById('sortOrderBtn');
+    const syncTelemetryBtn = document.getElementById('syncTelemetryBtn');
+
+    let currentSortDesc = true;
+
+    // Filter toggles
+    filterChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        const filter = chip.getAttribute('data-filter');
+
+        // Style active state
+        filterChips.forEach(c => {
+          c.classList.remove('bg-on-surface', 'text-surface-bright');
+          c.classList.add('bg-surface-container-highest', 'text-on-surface');
+        });
+        chip.classList.add('bg-on-surface', 'text-surface-bright');
+        chip.classList.remove('bg-surface-container-highest', 'text-on-surface');
+
+        // Filter cards
+        let visibleCount = 0;
+        readingCards.forEach(card => {
+          const category = card.getAttribute('data-category');
+          if (filter === 'all' || category === filter) {
+            card.classList.remove('hidden');
+            visibleCount++;
+          } else {
+            card.classList.add('hidden');
+          }
+        });
+
+        if (visibleCount === 0) {
+          emptyState.classList.remove('hidden');
+          emptyState.classList.add('flex');
+        } else {
+          emptyState.classList.add('hidden');
+          emptyState.classList.remove('flex');
+        }
+      });
+    });
+
+    // Inspector card triggers
+    readingCards.forEach(card => {
+      card.addEventListener('click', () => {
+        const titleText = card.querySelector('h3')?.innerText || 'Telemetry Point';
+        const metricEl = card.querySelector('.text-secondary, .text-tertiary, .text-error');
+        const metricText = metricEl ? metricEl.innerText : '-70 dBm';
+
+        inspectorTitle.innerText = titleText;
+        inspectorMetric.innerText = metricText;
+        inspectorModal.classList.remove('hidden');
+        inspectorModal.classList.add('flex');
+      });
+    });
+
+    closeInspectorBtn?.addEventListener('click', () => {
+      inspectorModal.classList.add('hidden');
+      inspectorModal.classList.remove('flex');
+    });
+
+    inspectorModal?.addEventListener('click', (e) => {
+      if (e.target === inspectorModal) {
+        inspectorModal.classList.add('hidden');
+        inspectorModal.classList.remove('flex');
+      }
+    });
+
+    // Retry Database Action
+    reloadDbBtn?.addEventListener('click', () => {
+      emptyState.classList.add('hidden');
+      emptyState.classList.remove('flex');
+      readingCards.forEach(c => c.classList.remove('hidden'));
+    });
+
+    // Quick FAB interaction
+    recordReadingFab?.addEventListener('click', () => {
+      recordReadingFab.classList.add('scale-90');
+      setTimeout(() => {
+        recordReadingFab.classList.remove('scale-90');
+        alert('Active RF probe scanning in progress: batstateu-alangilan-sector...');
+      }, 150);
+    });
+
+    // Toggle Sort Order
+    sortOrderBtn?.addEventListener('click', () => {
+      currentSortDesc = !currentSortDesc;
+      const cardsArr = Array.from(readingCards);
+      cardsArr.reverse().forEach(c => readingsFeed.appendChild(c));
+    });
+
+    // Export Feedback
+    syncTelemetryBtn?.addEventListener('click', () => {
+      const originalText = syncTelemetryBtn.innerHTML;
+      syncTelemetryBtn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">refresh</span><span>SAVING</span>';
+      setTimeout(() => {
+        syncTelemetryBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">check</span><span>DONE</span>';
+        setTimeout(() => {
+          syncTelemetryBtn.innerHTML = originalText;
+        }, 1500);
+      }, 700);
+    });
+  })();
+</script></main><nav class="fixed bottom-0 w-full z-50 pb-safe bg-surface-container-lowest/95 backdrop-blur-xl shadow-[0_-4px_16px_rgba(19,27,46,0.06)]" data-active-classes="text-primary-container font-bold [&amp;&gt;div]:bg-primary-fixed/60 [&amp;&gt;div&gt;span]:text-primary-container"><div class="flex items-center justify-around h-16 px-gutter"><a class="flex flex-col items-center justify-center gap-0.5 min-w-[72px] h-12 rounded-xl text-on-surface-variant hover:text-on-surface transition-all duration-200" data-path="map" href="#"><div class="w-14 h-7 rounded-full flex items-center justify-center transition-colors duration-200"><span class="material-symbols-outlined text-[22px]">map</span></div><span class="font-label-sm text-label-sm">Map</span></a><a aria-current="page" class="flex flex-col items-center justify-center gap-0.5 min-w-[72px] h-12 rounded-xl transition-all duration-200 text-primary-container font-bold [&amp;&gt;div]:bg-primary-fixed/60 [&amp;&gt;div&gt;span]:text-primary-container" data-path="readings" href="#"><div class="w-14 h-7 rounded-full flex items-center justify-center transition-colors duration-200"><span class="material-symbols-outlined text-[22px]">format_list_bulleted</span></div><span class="font-label-sm text-label-sm">Readings</span></a></div></nav></body></html>

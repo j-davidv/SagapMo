@@ -11,6 +11,15 @@ abstract class ReadingDao {
     @Query("SELECT * FROM readings WHERE id = :id")
     abstract suspend fun getById(id: String): Reading?
 
+    @Query("DELETE FROM readings WHERE id = :id")
+    abstract suspend fun deleteById(id: String)
+
+    @Query("UPDATE readings SET latitude = :latitude, longitude = :longitude, accuracyMetres = NULL, locationAgeMillisAtCapture = NULL, noLocationReason = NULL, locationManuallySet = 1 WHERE id = :id")
+    abstract suspend fun setManualLocation(id: String, latitude: Double, longitude: Double): Int
+
+    @Query("UPDATE readings SET locationDescription = :description WHERE id = :id")
+    abstract suspend fun setLocationDescription(id: String, description: String): Int
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     abstract suspend fun insertIfAbsent(reading: Reading): Long
 

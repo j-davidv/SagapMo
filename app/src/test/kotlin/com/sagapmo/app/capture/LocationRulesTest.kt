@@ -7,6 +7,30 @@ import org.junit.Test
 class LocationRulesTest {
     private val access = LocationAccess(true, true, true)
     private val fix = LocationFix(13.78421, 121.07428, 30f, 70_000)
+    @Test fun impreciseAndUnknownAccuracyKeepCoordinatesAndWarning() {
+        val sample = SignalSample(ConnectionType.WIFI, -65, SignalUnit.DBM, Rating.GOOD, null, 1000, 100_000)
+        for (accuracy in listOf(100f, null)) {
+            val reading = assembleReading("approximate", sample, LocationResult.Candidate(fix.copy(accuracyMetres = accuracy)), access)
+            assertEquals(fix.latitude, reading.latitude!!, 0.0)
+            assertEquals(fix.longitude, reading.longitude!!, 0.0)
+            assertEquals(accuracy, reading.accuracyMetres)
+            assertEquals(NoLocationReason.LOCATION_INACCURATE, reading.noLocationReason)
+            validateReading(reading)
+        }
+    }
+    @Test fun coarsePermissionKeepsValidCoordinatesButNotInvalidOrStaleFixes() {
+        val sample = SignalSample(ConnectionType.WIFI, -65, SignalUnit.DBM, Rating.GOOD, null, 1000, 100_000)
+        val coarse = access.copy(precise = false)
+        val reading = assembleReading("coarse", sample, LocationResult.Candidate(fix.copy(accuracyMetres = 1000f)), coarse)
+        assertNotNull(reading.latitude)
+        assertEquals(NoLocationReason.APPROXIMATE_ONLY, reading.noLocationReason)
+        validateReading(reading)
+        for (invalid in listOf(fix.copy(latitude = Double.NaN), fix.copy(measuredElapsedMillis = 0), fix.copy(accuracyMetres = -1f))) {
+            val unlocated = assembleReading("invalid", sample, LocationResult.Candidate(invalid), coarse)
+            assertNull(unlocated.latitude)
+            validateReading(unlocated)
+        }
+    }
     @Test fun exactLocationLimitsQualify() {
         assertNull(locationReason(fix, access, 100_000))
         assertEquals(NoLocationReason.LOCATION_STALE, locationReason(fix, access, 100_001))

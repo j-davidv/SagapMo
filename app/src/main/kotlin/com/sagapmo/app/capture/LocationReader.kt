@@ -31,7 +31,7 @@ class AndroidLocationReader(private val context: Context) : LocationReader {
 
     @SuppressLint("MissingPermission")
     override suspend fun locate(): LocationResult {
-        locationAccessReason(currentAccess())?.let { return LocationResult.Missing(it) }
+        locationAccessReason(currentAccess())?.takeUnless { it == NoLocationReason.APPROXIMATE_ONLY }?.let { return LocationResult.Missing(it) }
         var best: LocationFix? = null
         var providerFailed = false
         fun rank(fix: LocationFix): Int = when (locationReason(fix, currentAccess(), SystemClock.elapsedRealtime())) {
@@ -65,7 +65,7 @@ class AndroidLocationReader(private val context: Context) : LocationReader {
                 rank(candidate) == 0
             }
         }
-        locationAccessReason(currentAccess())?.let { return LocationResult.Missing(it) }
+        locationAccessReason(currentAccess())?.takeUnless { it == NoLocationReason.APPROXIMATE_ONLY }?.let { return LocationResult.Missing(it) }
         return (qualifying ?: best)?.let { LocationResult.Candidate(it) }
             ?: LocationResult.Missing(if (providerFailed) NoLocationReason.LOCATION_UNAVAILABLE else NoLocationReason.LOCATION_TIMEOUT)
     }

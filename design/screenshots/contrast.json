@@ -1,0 +1,76 @@
+[
+  {
+    "theme": "light",
+    "values": [
+      {
+        "name": "body",
+        "ratio": 15.24
+      },
+      {
+        "name": "secondary",
+        "ratio": 6.23
+      },
+      {
+        "name": "secondary on subtle",
+        "ratio": 5.84
+      },
+      {
+        "name": "Good",
+        "ratio": 6.18
+      },
+      {
+        "name": "Fair",
+        "ratio": 6.13
+      },
+      {
+        "name": "Poor",
+        "ratio": 6.46
+      },
+      {
+        "name": "accent",
+        "ratio": 7.99
+      },
+      {
+        "name": "primary button",
+        "ratio": 7.99
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "values": [
+      {
+        "name": "body",
+        "ratio": 13.21
+      },
+      {
+        "name": "secondary",
+        "ratio": 8.26
+      },
+      {
+        "name": "secondary on subtle",
+        "ratio": 7.2
+      },
+      {
+        "name": "Good",
+        "ratio": 7.45
+      },
+      {
+        "name": "Fair",
+        "ratio": 7.47
+      },
+      {
+        "name": "Poor",
+        "ratio": 7.66
+      },
+      {
+        "name": "accent",
+        "ratio": 9.32
+      },
+      {
+        "name": "primary button",
+        "ratio": 10.09
+      }
+    ]
+  }
+]

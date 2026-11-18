@@ -53,7 +53,11 @@ fun assembleReading(id: String, sample: SignalSample, location: LocationResult, 
         is LocationResult.Candidate -> locationReason(location.fix, access, sample.capturedElapsedMillis)
         is LocationResult.Missing -> location.reason
     }
-    val eligible = fix?.takeIf { reason == null }
+    val eligible = fix?.takeIf {
+        val quality = locationReason(it, LocationAccess(true, true, access.servicesEnabled), sample.capturedElapsedMillis)
+        reason in setOf(null, NoLocationReason.LOCATION_INACCURATE, NoLocationReason.APPROXIMATE_ONLY) &&
+            (quality == null || quality == NoLocationReason.LOCATION_INACCURATE)
+    }
     return Reading(id, sample.capturedAtEpochMillis, sample.connectionType, sample.rawSignalValue,
         sample.signalUnit, sample.rating, sample.signalAgeMillisAtCapture,
         eligible?.latitude, eligible?.longitude, eligible?.accuracyMetres,
@@ -61,6 +65,7 @@ fun assembleReading(id: String, sample: SignalSample, location: LocationResult, 
 }
 
 fun validateReading(reading: Reading) = with(reading) {
+    require(locationDescription.length <= 200)
     require(id.isNotBlank() && capturedAtEpochMillis >= 0)
     if (connectionType == ConnectionType.WIFI) {
         require(signalUnit == SignalUnit.DBM && signalAgeMillisAtCapture == null && rateWifi(rawSignalValue) == rating)
@@ -68,12 +73,17 @@ fun validateReading(reading: Reading) = with(reading) {
         require(signalUnit == SignalUnit.ANDROID_LEVEL && signalAgeMillisAtCapture != null &&
             signalAgeMillisAtCapture in 0..60_000 && rateMobile(rawSignalValue, 0, signalAgeMillisAtCapture) == rating)
     }
-    if (noLocationReason != null) {
+    if (latitude == null) {
+        require(noLocationReason != null && !locationManuallySet)
         require(latitude == null && longitude == null && accuracyMetres == null && locationAgeMillisAtCapture == null)
     } else {
-        require(latitude != null && longitude != null && accuracyMetres != null && locationAgeMillisAtCapture != null)
-        require(locationAgeMillisAtCapture in 0..30_000)
-        require(locationReason(LocationFix(latitude, longitude, accuracyMetres, 0),
-            LocationAccess(true, true, true), locationAgeMillisAtCapture) == null)
+        require(latitude.isFinite() && latitude in -90.0..90.0 && longitude != null && longitude.isFinite() && longitude in -180.0..180.0)
+        if (locationManuallySet) require(noLocationReason == null && accuracyMetres == null && locationAgeMillisAtCapture == null)
+        else {
+            require(locationAgeMillisAtCapture != null && locationAgeMillisAtCapture in 0..30_000)
+            val reason = locationReason(LocationFix(latitude, longitude, accuracyMetres, 0), LocationAccess(true, true, true), locationAgeMillisAtCapture)
+            require((reason == null || reason == NoLocationReason.LOCATION_INACCURATE) &&
+                (reason == noLocationReason || noLocationReason == NoLocationReason.APPROXIMATE_ONLY))
+        }
     }
 }

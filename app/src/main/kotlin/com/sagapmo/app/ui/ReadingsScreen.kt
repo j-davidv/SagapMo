@@ -6,16 +6,35 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import kotlinx.coroutines.flow.first
+import kotlin.math.abs
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import com.sagapmo.app.*
 import com.sagapmo.app.reading.*
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 
 @Composable fun ReadingsScreen(state: AppUiState, onRecord: () -> Unit, onFilter: (ConnectionType?) -> Unit,
-    onOpen: (Reading) -> Unit, onRetry: () -> Unit) {
+    onOpen: (Reading) -> Unit, onRetry: () -> Unit, onDelete: (Reading) -> Unit) {
+    var pendingDeletion by remember { mutableStateOf<Reading?>(null) }
+    pendingDeletion?.let { reading ->
+        AlertDialog(onDismissRequest = { pendingDeletion = null },
+            title = { Text("Delete reading?") },
+            text = { Text("Delete this ${reading.connectionType.label()} reading from ${reading.shortTime()}?") },
+            confirmButton = { TextButton({ pendingDeletion = null; onDelete(reading) }) {
+                AppIcon(AppSymbol.DELETE, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Delete", color = MaterialTheme.colorScheme.error)
+            } },
+            dismissButton = { TextButton({ pendingDeletion = null }) { Text("Cancel") } })
+    }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.padding(20.dp, 20.dp, 20.dp, 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -23,10 +42,6 @@ import androidx.compose.ui.unit.dp
                 Text("${state.allReadings.size} saved", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Filters(state, onFilter)
-        }
-        Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).padding(20.dp, 10.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Newest first", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Saved on this phone", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         when (state.readingsState) {
             ReadingsState.Loading -> Column(Modifier.padding(20.dp).testTag("readings-loading"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -43,7 +58,34 @@ import androidx.compose.ui.unit.dp
                 }
             } else LazyColumn(Modifier.fillMaxSize()) {
                 items(state.visibleReadings, key = { it.id }) { reading ->
-                    ReadingRow(reading, { onOpen(reading) })
+                    var deletionRequested by remember { mutableStateOf(false) }
+                    var rowWidth by remember { mutableIntStateOf(0) }
+                    val swipeState = remember { mutableStateOf<SwipeToDismissBoxState?>(null) }
+                    val dismiss = rememberSwipeToDismissBoxState(confirmValueChange = { value ->
+                        if (value == SwipeToDismissBoxValue.EndToStart && rowWidth > 0 &&
+                            (swipeState.value?.requireOffset() ?: 0f) <= -rowWidth * 0.5f) deletionRequested = true
+                        false
+                    }, positionalThreshold = { width -> width * 0.5f })
+                    SideEffect { swipeState.value = dismiss }
+                    LaunchedEffect(deletionRequested) {
+                        if (deletionRequested) {
+                            snapshotFlow { abs(dismiss.requireOffset()) < 0.5f }.first { it }
+                            pendingDeletion = reading
+                            deletionRequested = false
+                        }
+                    }
+                    SwipeToDismissBox(dismiss, enableDismissFromStartToEnd = false,
+                        modifier = Modifier.animateItem().onSizeChanged { rowWidth = it.width }.semantics { customActions = listOf(CustomAccessibilityAction("Delete reading") { pendingDeletion = reading; true }) },
+                        backgroundContent = {
+                            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.errorContainer).padding(horizontal = 24.dp), contentAlignment = Alignment.CenterEnd) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    AppIcon(AppSymbol.DELETE, tint = MaterialTheme.colorScheme.onErrorContainer)
+                                    Text("Delete", color = MaterialTheme.colorScheme.onErrorContainer)
+                                }
+                            }
+                        }) {
+                        Surface { ReadingRow(reading, { onOpen(reading) }) }
+                    }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
@@ -70,12 +112,12 @@ import androidx.compose.ui.unit.dp
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top) {
-            val reason = reading.noLocationReason
-            val color = if (reason == null) MaterialTheme.colorScheme.onSurfaceVariant else LocalRatingColors.current.fair
-            AppIcon(if (reason == null) AppSymbol.PIN else AppSymbol.NO_PIN, modifier = Modifier.size(16.dp), tint = color)
-            Text(if (reason == null) "On map · Accuracy ±${reading.accuracyMetres?.toInt()} m"
-                else "No pin · ${reason.explanation().removeSuffix(" Saved without a pin.")}",
-                style = MaterialTheme.typography.bodySmall, color = color)
+            val approximate = reading.noLocationReason in setOf(NoLocationReason.LOCATION_INACCURATE, NoLocationReason.APPROXIMATE_ONLY)
+            val color = if (reading.latitude == null || approximate) LocalRatingColors.current.fair else MaterialTheme.colorScheme.onSurfaceVariant
+            AppIcon(if (reading.latitude == null) AppSymbol.NO_PIN else AppSymbol.PIN, modifier = Modifier.size(16.dp), tint = color)
+            Text(reading.locationSummary(), style = MaterialTheme.typography.bodySmall, color = color)
         }
+        if (reading.locationDescription.isNotBlank()) Text(reading.locationDescription,
+            style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }

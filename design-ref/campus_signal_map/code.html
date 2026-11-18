@@ -1,0 +1,383 @@
+<!DOCTYPE html><html class="light" lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><meta content="mobile_tab" name="shell-type"><title>SagapMo? - Campus Signal Logger</title><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Space+Grotesk:wght@600;700&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "error": "#ba1a1a", "on-tertiary-fixed": "#2f1500", "on-secondary-container": "#00714e", "secondary": "#006c4a", "on-tertiary-fixed-variant": "#6e3900", "outline-variant": "#e2bebe", "primary-fixed": "#ffdada", "tertiary-container": "#7c4100", "tertiary-fixed-dim": "#ffb77d", "surface-container-lowest": "#ffffff", "error-container": "#ffdad6", "on-primary-fixed-variant": "#920025", "primary-fixed-dim": "#ffb3b4", "surface-bright": "#faf8ff", "on-primary-container": "#ffaeb0", "on-primary-fixed": "#40000b", "surface-container-low": "#f2f3ff", "on-surface": "#131b2e", "surface-tint": "#b71e38", "on-secondary-fixed-variant": "#005137", "surface-variant": "#dae2fd", "inverse-surface": "#283044", "background": "#faf8ff", "surface-dim": "#d2d9f4", "primary": "#79001d", "on-primary": "#ffffff", "inverse-primary": "#ffb3b4", "on-error-container": "#93000a", "on-error": "#ffffff", "primary-container": "#a3082c", "on-surface-variant": "#5a4041", "secondary-container": "#85f5c1", "on-tertiary": "#ffffff", "surface-container": "#eaedff", "surface-container-highest": "#dae2fd", "tertiary-fixed": "#ffdcc3", "secondary-fixed": "#88f8c4", "inverse-on-surface": "#eef0ff", "outline": "#8e7070", "on-secondary": "#ffffff", "surface-container-high": "#e2e7ff", "on-background": "#131b2e", "on-tertiary-container": "#ffb273", "on-secondary-fixed": "#002114", "tertiary": "#5a2e00", "secondary-fixed-dim": "#6bdba9", "surface": "#faf8ff" }, borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, spacing: { "space-md": "0.75rem", "space-sm": "0.5rem", "margin-sm": "0.75rem", "space-xl": "1.5rem", "space-lg": "1rem", "space-2xs": "0.25rem", "space-2xl": "2rem", "gutter": "1rem", "space-xs": "0.375rem", "gutter-sm": "0.5rem", "margin": "1rem", "margin-lg": "1.5rem", "gutter-lg": "1.5rem" }, fontFamily: { "title-md": ["Plus Jakarta Sans"], "label-lg": ["Space Grotesk"], "headline-sm": ["Space Grotesk"], "label-sm": ["Space Grotesk"], "metric-display": ["Space Grotesk"], "body-sm": ["Plus Jakarta Sans"], "body-md": ["Plus Jakarta Sans"], "headline-xl": ["Space Grotesk"], "headline-lg": ["Space Grotesk"], "body-lg": ["Plus Jakarta Sans"], "label-md": ["Space Grotesk"], "headline-md": ["Space Grotesk"] }, fontSize: { "title-md": ["16px", { lineHeight: "22px", fontWeight: "600" }], "label-lg": ["14px", { lineHeight: "18px", letterSpacing: "0.02em", fontWeight: "700" }], "headline-sm": ["18px", { lineHeight: "24px", fontWeight: "600" }], "label-sm": ["10px", { lineHeight: "14px", letterSpacing: "0.06em", fontWeight: "700" }], "metric-display": ["36px", { lineHeight: "42px", letterSpacing: "-0.03em", fontWeight: "700" }], "body-sm": ["12px", { lineHeight: "16px", fontWeight: "500" }], "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }], "headline-xl": ["32px", { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "700" }], "headline-lg": ["26px", { lineHeight: "32px", letterSpacing: "-0.015em", fontWeight: "700" }], "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }], "label-md": ["12px", { lineHeight: "16px", letterSpacing: "0.04em", fontWeight: "600" }], "headline-md": ["20px", { lineHeight: "26px", fontWeight: "600" }] } } } }</script><style>@layer base { html, body { width: 100vw; margin: 0; padding: 0; min-height: 100vh; } body { overscroll-behavior-y: none; } .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); } .pt-safe { padding-top: env(safe-area-inset-top, 0px); } main > :first-child { margin-top: 0 !important; } main > :last-child { margin-bottom: 0 !important; } } ::-webkit-scrollbar { display: none; }</style><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface text-on-surface font-body-md text-body-md antialiased flex flex-col min-h-screen selection:bg-primary-fixed-dim selection:text-on-primary-fixed"><header class="fixed top-0 w-full z-50 pt-safe bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-margin flex items-center justify-between gap-space-sm"><div class="flex items-center gap-space-sm min-w-0"><img alt="SagapMo Logo" class="h-8 w-auto object-contain shrink-0" src="https://lh3.googleusercontent.com/aida-embedded-content/AP61F-yFfI3F_O3iOa3Kq_1tL_aWz8Xp8S-Wp4Zf0p4n5z6k8L7J3R1v2M8K"><div class="flex flex-col min-w-0"><div class="flex items-center gap-space-2xs"><span class="font-label-lg text-label-lg tracking-tight text-primary font-bold truncate">SagapMo</span><span class="w-1.5 h-1.5 rounded-full bg-secondary shrink-0" title="Telemetry Active"></span></div></div></div><div class="flex items-center gap-space-xs shrink-0"><button aria-label="Toggle dark mode" class="w-8 h-8 rounded-full bg-surface-container-high hover:bg-surface-variant active:scale-95 flex items-center justify-center text-on-surface transition-all" onclick="document.documentElement.classList.toggle('dark')"><span class="material-symbols-outlined text-[18px]">dark_mode</span></button></div></div></header><main class="flex flex-col relative w-full pt-16 bg-surface min-h-screen pb-24"><div class="flex flex-col w-full relative select-none">
+<!-- Map Canvas Container (Lyft-style full interactive backdrop feel) -->
+<div class="relative w-full h-[calc(100vh-4rem-4rem)] overflow-hidden bg-surface-container-high">
+<!-- Stylized Map Canvas Graphics (SVG Campus Blueprint: BatState-U Alangilan) -->
+<div class="absolute inset-0 w-full h-full flex items-center justify-center transition-transform duration-300" id="campus-canvas">
+<svg class="w-[720px] h-[720px] text-surface-variant max-w-none shrink-0" fill="none" viewBox="0 0 720 720" xmlns="http://www.w3.org/2000/svg">
+<!-- Campus Grounds & Green Area -->
+<rect fill="#e9edfb" height="720" width="720"></rect>
+<!-- Perimeter Road & Surrounding Streets -->
+<path d="M 0,220 L 720,230" stroke="#dae2fd" stroke-linecap="round" stroke-width="28"></path>
+<path d="M 160,0 L 170,720" stroke="#dae2fd" stroke-linecap="round" stroke-width="24"></path>
+<path d="M 520,0 L 530,720" stroke="#dae2fd" stroke-linecap="round" stroke-width="20"></path>
+<path d="M 160,490 L 720,495" stroke="#dae2fd" stroke-linecap="round" stroke-width="20"></path>
+<!-- Campus Pathways / Internal Walkways -->
+<path d="M 170,230 Q 300,270 380,330 T 520,380" stroke="#ffffff" stroke-linecap="round" stroke-width="12"></path>
+<path d="M 380,230 L 380,490" stroke="#ffffff" stroke-linecap="round" stroke-width="14"></path>
+<path d="M 230,340 L 460,340" stroke="#ffffff" stroke-linecap="round" stroke-width="10"></path>
+<!-- Campus Oval & Running Track -->
+<rect fill="#dae2fd" height="130" rx="65" width="220" x="230" y="380"></rect>
+<rect fill="#c3eed5" height="100" rx="50" width="190" x="245" y="395"></rect>
+<text class="font-label-sm text-[11px] fill-secondary font-bold tracking-wider" text-anchor="middle" x="340" y="450">CAMPUS OVAL</text>
+<!-- Buildings Polygons with Outdoor Clarity High-Contrast Fills -->
+<!-- Main Gate & Plaza -->
+<rect fill="#ffffff" filter="drop-shadow(0 2px 4px rgba(19,27,46,0.08))" height="24" rx="4" width="60" x="180" y="195"></rect>
+<text class="font-label-sm text-[9px] fill-on-surface font-bold" text-anchor="middle" x="210" y="211">MAIN GATE</text>
+<!-- CEAFA Building (College of Engineering, Architecture & Fine Arts) -->
+<rect fill="#ffffff" filter="drop-shadow(0 2px 6px rgba(19,27,46,0.08))" height="65" rx="6" width="120" x="210" y="250"></rect>
+<rect fill="#a3082c" height="57" rx="3" width="6" x="214" y="254"></rect>
+<text class="font-headline-sm text-[12px] fill-on-surface font-bold" text-anchor="middle" x="275" y="280">CEAFA BLDG</text>
+<text class="font-label-sm text-[9px] fill-on-surface-variant" text-anchor="middle" x="275" y="294">Arch &amp; Eng Lab</text>
+<!-- CICS Building (College of Informatics & Computing Sciences) -->
+<rect fill="#ffffff" filter="drop-shadow(0 2px 6px rgba(19,27,46,0.08))" height="65" rx="6" width="115" x="360" y="250"></rect>
+<rect fill="#006c4a" height="57" rx="3" width="6" x="364" y="254"></rect>
+<text class="font-headline-sm text-[12px] fill-on-surface font-bold" text-anchor="middle" x="420" y="280">CICS BLDG</text>
+<text class="font-label-sm text-[9px] fill-on-surface-variant" text-anchor="middle" x="420" y="294">Tech &amp; Comp Labs</text>
+<!-- Student Center & Cafeteria -->
+<rect fill="#ffffff" filter="drop-shadow(0 2px 6px rgba(19,27,46,0.08))" height="55" rx="6" width="85" x="495" y="270"></rect>
+<text class="font-label-md text-[11px] fill-on-surface font-bold" text-anchor="middle" x="537" y="300">STUDENT</text>
+<text class="font-label-sm text-[9px] fill-on-surface-variant" text-anchor="middle" x="537" y="313">CENTER</text>
+<!-- Gymnasium Courtyard -->
+<rect fill="#ffffff" filter="drop-shadow(0 2px 6px rgba(19,27,46,0.08))" height="85" rx="6" width="130" x="210" y="530"></rect>
+<rect fill="#7c4100" height="77" rx="3" width="6" x="214" y="534"></rect>
+<text class="font-headline-sm text-[12px] fill-on-surface font-bold" text-anchor="middle" x="278" y="570">GYMNASIUM</text>
+<text class="font-label-sm text-[9px] fill-on-surface-variant" text-anchor="middle" x="278" y="584">Courtyard &amp; Bleachers</text>
+<!-- Engineering Laboratory Complex -->
+<rect fill="#ffffff" filter="drop-shadow(0 2px 6px rgba(19,27,46,0.08))" height="75" rx="6" width="125" x="370" y="530"></rect>
+<text class="font-headline-sm text-[12px] fill-on-surface font-bold" text-anchor="middle" x="432" y="565">ENG LABS</text>
+<text class="font-label-sm text-[9px] fill-on-surface-variant" text-anchor="middle" x="432" y="579">Heavy Machinery</text>
+<!-- User Pulse Ring & Location Anchor (Lat 13.78421, Lng 121.07428) -->
+<circle cx="380" cy="340" fill="#a3082c" fill-opacity="0.12" r="28"></circle>
+<circle cx="380" cy="340" fill="#a3082c" fill-opacity="0.25" r="14"></circle>
+<circle cx="380" cy="340" fill="#ffffff" r="7" stroke="#a3082c" stroke-width="3"></circle>
+</svg>
+</div>
+<!-- Telemetry RF Pins (Overlayed with micro-delight bounce & ripple) -->
+<!-- PIN 1: CICS 3rd Flr Lab (Green / Good Wi-Fi) -->
+<button aria-label="Signal Pin CICS Building" class="pin-marker group absolute top-[36%] left-[58%] -translate-x-1/2 -translate-y-full flex flex-col items-center cursor-pointer transition-transform active:scale-95 focus:outline-none" id="pin-cics" onclick="selectPin('pin-cics')">
+<div class="flex items-center gap-space-2xs bg-surface-container-lowest text-secondary shadow-md px-space-xs py-0.5 rounded-full mb-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="font-label-sm text-label-sm font-bold text-on-surface">-58 dBm</span>
+</div>
+<div class="w-9 h-9 rounded-full bg-secondary text-on-secondary flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: &quot;FILL&quot; 1;">wifi</span>
+</div>
+<div class="w-2 h-2 bg-secondary rotate-45 -mt-1 rounded-xs"></div>
+</button>
+<!-- PIN 2: Gymnasium Courtyard (Amber / Fair Mobile) -->
+<button aria-label="Signal Pin Gymnasium" class="pin-marker group absolute top-[70%] left-[36%] -translate-x-1/2 -translate-y-full flex flex-col items-center cursor-pointer transition-transform active:scale-95 focus:outline-none" id="pin-gym" onclick="selectPin('pin-gym')">
+<div class="flex items-center gap-space-2xs bg-surface-container-lowest text-tertiary-container shadow-md px-space-xs py-0.5 rounded-full mb-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary-fixed-dim"></span>
+<span class="font-label-sm text-label-sm font-bold text-on-surface">Fair (2/4)</span>
+</div>
+<div class="w-9 h-9 rounded-full bg-tertiary-container text-on-tertiary flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
+<span class="material-symbols-outlined text-[19px]">signal_cellular_alt_2_bar</span>
+</div>
+<div class="w-2 h-2 bg-tertiary-container rotate-45 -mt-1 rounded-xs"></div>
+</button>
+<!-- PIN 3: Oval Bleachers (Red / Poor Wi-Fi) -->
+<button aria-label="Signal Pin Oval Bleachers" class="pin-marker group absolute top-[52%] left-[48%] -translate-x-1/2 -translate-y-full flex flex-col items-center cursor-pointer transition-transform active:scale-95 focus:outline-none" id="pin-oval" onclick="selectPin('pin-oval')">
+<div class="flex items-center gap-space-2xs bg-surface-container-lowest text-error shadow-md px-space-xs py-0.5 rounded-full mb-1">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+<span class="font-label-sm text-label-sm font-bold text-on-surface">-78 dBm</span>
+</div>
+<div class="w-9 h-9 rounded-full bg-error text-on-error flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
+<span class="material-symbols-outlined text-[20px]">wifi_off</span>
+</div>
+<div class="w-2 h-2 bg-error rotate-45 -mt-1 rounded-xs"></div>
+</button>
+<!-- PIN 4: Main Gate (Green / Good Mobile) -->
+<button aria-label="Signal Pin Main Entrance Gate" class="pin-marker group absolute top-[28%] left-[29%] -translate-x-1/2 -translate-y-full flex flex-col items-center cursor-pointer transition-transform active:scale-95 focus:outline-none" id="pin-gate" onclick="selectPin('pin-gate')">
+<div class="flex items-center gap-space-2xs bg-surface-container-lowest text-secondary shadow-md px-space-xs py-0.5 rounded-full mb-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="font-label-sm text-label-sm font-bold text-on-surface">4G 4/4</span>
+</div>
+<div class="w-9 h-9 rounded-full bg-secondary text-on-secondary flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
+<span class="material-symbols-outlined text-[20px]">signal_cellular_4_bar</span>
+</div>
+<div class="w-2 h-2 bg-secondary rotate-45 -mt-1 rounded-xs"></div>
+</button>
+<!-- Floating Top HUD Filter Bar (Lyft ride pill style) -->
+<div class="absolute top-margin left-margin right-margin z-20 flex flex-col gap-space-xs pointer-events-auto">
+<div class="flex items-center justify-between gap-space-xs bg-surface-container-lowest shadow-md p-1.5 rounded-full">
+<!-- Filter Pills with smooth switches -->
+<div class="flex items-center gap-1">
+<button class="filter-pill bg-on-surface text-surface-container-lowest px-3.5 py-1.5 rounded-full font-label-md text-label-md flex items-center gap-1 transition-all duration-200" onclick="setFilter('all', this)">
+<span>All</span>
+<span class="bg-surface-container-lowest/25 px-1.5 py-0.2 rounded-full text-[10px]">28</span>
+</button>
+<button class="filter-pill bg-transparent text-on-surface-variant hover:text-on-surface px-3 py-1.5 rounded-full font-label-md text-label-md flex items-center gap-1 transition-all duration-200" onclick="setFilter('wifi', this)">
+<span class="material-symbols-outlined text-[16px]">wifi</span>
+<span>Wi-Fi</span>
+</button>
+<button class="filter-pill bg-transparent text-on-surface-variant hover:text-on-surface px-3 py-1.5 rounded-full font-label-md text-label-md flex items-center gap-1 transition-all duration-200" onclick="setFilter('mobile', this)">
+<span class="material-symbols-outlined text-[16px]">cell_tower</span>
+<span>Mobile</span>
+</button>
+</div>
+<!-- Quick Status Dot Pill -->
+<div class="flex items-center gap-1.5 bg-surface-container-low px-2.5 py-1 rounded-full text-on-surface-variant">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+<span class="font-label-sm text-label-sm font-semibold tracking-normal uppercase">Live RF</span>
+</div>
+</div>
+</div>
+<!-- Floating Map Utility Action Cluster (Lyft Right-Side Floating Actions) -->
+<div class="absolute right-margin top-20 z-20 flex flex-col gap-space-xs pointer-events-auto">
+<!-- Re-center onto User Pin -->
+<button aria-label="Recenter map" class="w-12 h-12 bg-surface-container-lowest text-on-surface rounded-full shadow-lg flex items-center justify-center hover:bg-surface-container-low active:scale-90 transition-transform" onclick="recenterMap()">
+<span class="material-symbols-outlined text-[24px] text-primary-container">my_location</span>
+</button>
+<!-- Toggle Satellite/Blueprint Style -->
+<button aria-label="Toggle map layer style" class="w-12 h-12 bg-surface-container-lowest text-on-surface rounded-full shadow-lg flex items-center justify-center hover:bg-surface-container-low active:scale-90 transition-transform" id="layer-btn" onclick="toggleMapStyle()">
+<span class="material-symbols-outlined text-[24px]">layers</span>
+</button>
+</div>
+<!-- Pin Callout Micro-Card (Pop-on-demand) -->
+<div class="hidden absolute top-20 left-margin right-margin z-30 transition-all duration-200 transform translate-y-2 pointer-events-auto" id="pin-callout">
+<div class="bg-surface-container-lowest shadow-xl rounded-xl p-space-md flex items-start justify-between gap-space-sm">
+<div class="flex items-start gap-space-sm">
+<div class="w-10 h-10 rounded-lg bg-secondary-container flex items-center justify-center text-on-secondary-container shrink-0 mt-0.5" id="callout-icon-bg">
+<span class="material-symbols-outlined text-[22px]" id="callout-icon">wifi</span>
+</div>
+<div>
+<div class="flex items-center gap-space-2xs">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold" id="callout-title">CICS 3rd Flr Lab</span>
+<span class="px-2 py-0.5 rounded-full font-label-sm text-label-sm bg-secondary-container text-on-secondary-container uppercase" id="callout-badge">Good</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5" id="callout-subtitle">SSID: BatStateU_Faculty • 5 GHz</p>
+<div class="flex items-center gap-space-md mt-2 font-label-sm text-label-sm text-on-surface">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px] text-secondary">speed</span> 74 Mbps</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px] text-primary">sensors</span> -58 dBm RSRP</span>
+</div>
+</div>
+</div>
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high" onclick="closeCallout()">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+</div>
+<!-- OpenFreeMap & OSM Legal Attribution Label (Bottom right above sheet) -->
+<div class="absolute bottom-40 right-2 z-10 pointer-events-auto">
+<div class="bg-surface-container-lowest/80 backdrop-blur-xs px-2 py-0.5 rounded text-[8px] font-label-sm text-on-surface-variant">
+        OpenFreeMap • OpenMapTiles • © OpenStreetMap
+      </div>
+</div>
+</div>
+<!-- Interactive Bottom Card Sheet Peek (Lyft Inspired Bottom Anchor) -->
+<div class="relative z-30 -mt-36 bg-surface-container-lowest rounded-t-2xl shadow-2xl px-margin pt-space-sm pb-space-lg flex flex-col gap-space-sm transition-all duration-300" id="bottom-sheet">
+<!-- Drag Handle -->
+<div class="w-full flex justify-center py-1 cursor-grab active:cursor-grabbing" onclick="toggleSheet()">
+<div class="w-10 h-1 bg-surface-variant rounded-full"></div>
+</div>
+<!-- Active Network Status Badge (High-contrast outdoor card) -->
+<div class="flex items-center justify-between p-space-sm rounded-xl bg-surface-container-low">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-9 h-9 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container shrink-0">
+<span class="material-symbols-outlined text-[20px]">wifi_tethering</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">BatStateU_Student</span>
+<span class="w-1.5 h-1.5 rounded-full bg-secondary shrink-0"></span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Connected (Wi-Fi) • -61 dBm (Good)</span>
+</div>
+</div>
+<div class="flex flex-col items-end shrink-0 pl-space-xs">
+<span class="font-label-lg text-label-lg text-secondary font-bold">48 ms</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Ping</span>
+</div>
+</div>
+<!-- Primary Action: Crimson Field CTA Button -->
+<button class="w-full h-12 bg-primary-container hover:bg-primary active:scale-[0.98] transition-all text-on-primary rounded-lg font-label-lg text-label-lg flex items-center justify-center gap-space-xs shadow-md" id="record-btn" onclick="triggerLoggingPulse()">
+<span class="material-symbols-outlined text-[20px] animate-pulse">radar</span>
+<span>RECORD READING</span>
+</button>
+<!-- Secondary Quick Metrics & Offline Status Row -->
+<div class="flex items-center justify-between pt-0.5 text-on-surface-variant px-1">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-secondary">cloud_done</span>
+<span class="font-label-sm text-label-sm font-semibold">14 Saved on device</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-label-sm text-label-sm font-semibold">100% Offline ready</span>
+</div>
+</div>
+<!-- Collapsible Extended Intel Tray (Revealed on sheet expansion or drag) -->
+<div class="hidden flex-col gap-space-sm pt-space-xs" id="expanded-details">
+<div class="grid grid-cols-2 gap-space-sm pt-space-xs">
+<div class="p-space-sm rounded-xl bg-surface-container">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Cellular Tower</span>
+<p class="font-headline-sm text-headline-sm text-on-surface font-bold mt-1">Smart LTE 1800</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Band 3 • eNodeB 4021</p>
+</div>
+<div class="p-space-sm rounded-xl bg-surface-container">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Campus Sector</span>
+<p class="font-headline-sm text-headline-sm text-on-surface font-bold mt-1">Alangilan East</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">±3.2m GPS Accuracy</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+  let sheetExpanded = false;
+
+  const pinData = {
+    'pin-cics': {
+      title: 'CICS 3rd Flr Lab',
+      badge: 'Good',
+      badgeClass: 'bg-secondary-container text-on-secondary-container',
+      iconBg: 'bg-secondary-container text-on-secondary-container',
+      icon: 'wifi',
+      subtitle: 'SSID: BatStateU_Faculty • 5 GHz',
+      speed: '74 Mbps',
+      signal: '-58 dBm RSSI'
+    },
+    'pin-gym': {
+      title: 'Gymnasium Courtyard',
+      badge: 'Fair',
+      badgeClass: 'bg-tertiary-fixed-dim text-on-tertiary-fixed',
+      iconBg: 'bg-tertiary-fixed-dim text-on-tertiary-fixed',
+      icon: 'signal_cellular_alt_2_bar',
+      subtitle: 'Globe 4G LTE • Band 28',
+      speed: '12 Mbps',
+      signal: '-96 dBm RSRP'
+    },
+    'pin-oval': {
+      title: 'Oval Bleachers',
+      badge: 'Poor',
+      badgeClass: 'bg-error-container text-on-error-container',
+      iconBg: 'bg-error-container text-on-error-container',
+      icon: 'wifi_off',
+      subtitle: 'SSID: BatStateU_Student • Weak Range',
+      speed: '1.2 Mbps',
+      signal: '-78 dBm RSSI'
+    },
+    'pin-gate': {
+      title: 'Main Entrance Gate',
+      badge: 'Good',
+      badgeClass: 'bg-secondary-container text-on-secondary-container',
+      iconBg: 'bg-secondary-container text-on-secondary-container',
+      icon: 'signal_cellular_4_bar',
+      subtitle: 'Smart 5G Ultra • Alangilan Pole 02',
+      speed: '142 Mbps',
+      signal: '-65 dBm RSRP'
+    }
+  };
+
+  function selectPin(id) {
+    const data = pinData[id];
+    if (!data) return;
+
+    const callout = document.getElementById('pin-callout');
+    document.getElementById('callout-title').textContent = data.title;
+    document.getElementById('callout-subtitle').textContent = data.subtitle;
+    document.getElementById('callout-icon').textContent = data.icon;
+
+    const badge = document.getElementById('callout-badge');
+    badge.textContent = data.badge;
+    badge.className = 'px-2 py-0.5 rounded-full font-label-sm text-label-sm uppercase ' + data.badgeClass;
+
+    const iconBg = document.getElementById('callout-icon-bg');
+    iconBg.className = 'w-10 h-10 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ' + data.iconBg;
+
+    callout.classList.remove('hidden');
+  }
+
+  function closeCallout() {
+    document.getElementById('pin-callout').classList.add('hidden');
+  }
+
+  function setFilter(type, el) {
+    document.querySelectorAll('.filter-pill').forEach(btn => {
+      btn.className = 'filter-pill bg-transparent text-on-surface-variant hover:text-on-surface px-3 py-1.5 rounded-full font-label-md text-label-md flex items-center gap-1 transition-all duration-200';
+    });
+    el.className = 'filter-pill bg-on-surface text-surface-container-lowest px-3.5 py-1.5 rounded-full font-label-md text-label-md flex items-center gap-1 transition-all duration-200';
+
+    const cicsPin = document.getElementById('pin-cics');
+    const ovalPin = document.getElementById('pin-oval');
+    const gymPin = document.getElementById('pin-gym');
+    const gatePin = document.getElementById('pin-gate');
+
+    if (type === 'wifi') {
+      cicsPin.style.display = 'flex';
+      ovalPin.style.display = 'flex';
+      gymPin.style.display = 'none';
+      gatePin.style.display = 'none';
+    } else if (type === 'mobile') {
+      cicsPin.style.display = 'none';
+      ovalPin.style.display = 'none';
+      gymPin.style.display = 'flex';
+      gatePin.style.display = 'flex';
+    } else {
+      cicsPin.style.display = 'flex';
+      ovalPin.style.display = 'flex';
+      gymPin.style.display = 'flex';
+      gatePin.style.display = 'flex';
+    }
+  }
+
+  function recenterMap() {
+    const canvas = document.getElementById('campus-canvas');
+    canvas.style.transform = 'scale(1.05)';
+    setTimeout(() => {
+      canvas.style.transform = 'scale(1)';
+    }, 250);
+  }
+
+  function toggleMapStyle() {
+    const canvas = document.getElementById('campus-canvas');
+    canvas.classList.toggle('invert-[0.1]');
+  }
+
+  function toggleSheet() {
+    const details = document.getElementById('expanded-details');
+    const sheet = document.getElementById('bottom-sheet');
+    sheetExpanded = !sheetExpanded;
+
+    if (sheetExpanded) {
+      details.classList.remove('hidden');
+      details.classList.add('flex');
+      sheet.classList.remove('-mt-36');
+      sheet.classList.add('-mt-56');
+    } else {
+      details.classList.add('hidden');
+      details.classList.remove('flex');
+      sheet.classList.remove('-mt-56');
+      sheet.classList.add('-mt-36');
+    }
+  }
+
+  function triggerLoggingPulse() {
+    const btn = document.getElementById('record-btn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="material-symbols-outlined text-[20px] animate-spin">sync</span><span>LOGGING GPS &amp; RF...</span>';
+    btn.classList.add('bg-primary');
+
+    setTimeout(() => {
+      btn.innerHTML = '<span class="material-symbols-outlined text-[20px]">check_circle</span><span>RECORDED!</span>';
+      btn.classList.remove('bg-primary');
+      btn.classList.add('bg-secondary');
+
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.classList.remove('bg-secondary');
+      }, 1400);
+    }, 900);
+  }
+</script></main><nav class="fixed bottom-0 w-full z-50 pb-safe bg-surface-container-lowest/95 backdrop-blur-xl shadow-[0_-4px_16px_rgba(19,27,46,0.06)]" data-active-classes="text-primary-container font-bold [&amp;&gt;div]:bg-primary-fixed/60 [&amp;&gt;div&gt;span]:text-primary-container"><div class="flex items-center justify-around h-16 px-gutter"><a aria-current="page" class="flex flex-col items-center justify-center gap-0.5 min-w-[72px] h-12 rounded-xl transition-all duration-200 text-primary-container font-bold [&amp;&gt;div]:bg-primary-fixed/60 [&amp;&gt;div&gt;span]:text-primary-container" data-path="map" href="#"><div class="w-14 h-7 rounded-full flex items-center justify-center transition-colors duration-200"><span class="material-symbols-outlined text-[22px]">map</span></div><span class="font-label-sm text-label-sm">Map</span></a><a class="flex flex-col items-center justify-center gap-0.5 min-w-[72px] h-12 rounded-xl text-on-surface-variant hover:text-on-surface transition-all duration-200" data-path="readings" href="#"><div class="w-14 h-7 rounded-full flex items-center justify-center transition-colors duration-200"><span class="material-symbols-outlined text-[22px]">format_list_bulleted</span></div><span class="font-label-sm text-label-sm">Readings</span></a></div></nav>
+
+
+
+
+
+</body></html>

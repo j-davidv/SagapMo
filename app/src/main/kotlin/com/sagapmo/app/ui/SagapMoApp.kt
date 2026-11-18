@@ -2,25 +2,35 @@ package com.sagapmo.app.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sagapmo.app.*
+import com.sagapmo.app.R
+import com.sagapmo.app.reading.Reading
 import com.sagapmo.app.map.CampusMapScreen
+import kotlinx.coroutines.launch
 import org.maplibre.compose.style.BaseStyle
 
 @Composable fun SagapMoApp(viewModel: SagapMoViewModel, onRecord: () -> Unit = { viewModel.record(false) },
     onRequestPermission: () -> Unit = {}, onOpenSettings: () -> Unit = {},
     baseStyle: BaseStyle = BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty")) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var editingLocation by remember { mutableStateOf<Reading?>(null) }
     Surface(color = MaterialTheme.colorScheme.surface) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val expanded = maxWidth >= 600.dp
@@ -32,35 +42,38 @@ import org.maplibre.compose.style.BaseStyle
                         label = { Text(if (destination == Destination.MAP) "Map" else "Readings") }) }
                 }
                 Scaffold(Modifier.weight(1f), containerColor = MaterialTheme.colorScheme.surface,
-                    topBar = { AppHeader() },
+                    snackbarHost = { SnackbarHost(snackbar) },
+                    topBar = { AppHeader(onOpenSettings) },
                     bottomBar = {
                         Column {
-                            RecordPanel(state, onRecord, viewModel::retrySave)
-                            if (!expanded) NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceVariant, tonalElevation = 0.dp) {
-                                Destination.entries.forEach { destination -> NavigationBarItem(
-                                    selected = state.destination == destination,
-                                    onClick = { viewModel.setDestination(destination) },
-                                    icon = { AppIcon(if (destination == Destination.MAP) AppSymbol.MAP else AppSymbol.LIST) },
-                                    label = { Text(if (destination == Destination.MAP) "Map" else "Readings", style = MaterialTheme.typography.bodySmall) },
-                                    colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.primary,
-                                        unselectedIconColor = MaterialTheme.colorScheme.onSurface, unselectedTextColor = MaterialTheme.colorScheme.onSurface,
-                                        selectedTextColor = MaterialTheme.colorScheme.primary, indicatorColor = MaterialTheme.colorScheme.primaryContainer)) }
-                            } else Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+                            if (expanded) RecordPanel(state, onRecord, viewModel::retrySave)
+                            if (!expanded) FloatingNavigation(state, viewModel::setDestination, onRecord, viewModel::retrySave)
+                            else Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
                         }
                     }) { padding ->
-                    Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
-                        if (state.destination == Destination.READINGS) ReadingsScreen(state, onRecord, viewModel::setFilter, viewModel::openReading, viewModel::retryReadings)
+                    val floatingMap = !expanded && state.destination == Destination.MAP
+                    val direction = LocalLayoutDirection.current
+                    val contentPadding = PaddingValues(start = padding.calculateStartPadding(direction), end = padding.calculateEndPadding(direction),
+                        top = padding.calculateTopPadding(), bottom = if (floatingMap) 0.dp else padding.calculateBottomPadding())
+                    Box(Modifier.fillMaxSize().padding(contentPadding).consumeWindowInsets(padding)) {
+                        if (state.destination == Destination.READINGS) ReadingsScreen(state, onRecord, viewModel::setFilter, viewModel::openReading, viewModel::retryReadings,
+                            onDelete = { reading -> scope.launch {
+                                if (viewModel.deleteReading(reading)) {
+                                    if (snackbar.showSnackbar("Reading deleted", "Undo", withDismissAction = true, duration = SnackbarDuration.Long) == SnackbarResult.ActionPerformed &&
+                                        !viewModel.restoreReading(reading)) snackbar.showSnackbar("Couldn't restore reading. Try again.")
+                                } else snackbar.showSnackbar("Couldn't delete reading. Try again.")
+                            } })
                         else Column(Modifier.fillMaxSize()) {
-                            val largeText = LocalDensity.current.fontScale > 1.3f
-                            if (largeText) MapFilters(state, viewModel)
                             Box(Modifier.fillMaxWidth().weight(1f)) {
                             CampusMapScreen(state.visibleReadings, state.focusedReadingId, viewModel::openReading,
                                 { viewModel.setDestination(Destination.READINGS) },
-                                baseStyle = baseStyle, topOverlayHeight = if (largeText) 0.dp else 104.dp,
+                                bottomOverlayHeight = if (floatingMap) padding.calculateBottomPadding() else 0.dp,
+                                baseStyle = baseStyle,
                                 emptyTitle = if (state.readingsState is ReadingsState.Loaded && state.visibleReadings.isEmpty())
                                     if (state.allReadings.isEmpty()) "No readings yet" else "No ${state.filter?.label()} readings" else null,
                                 onShowAll = if (state.allReadings.isNotEmpty()) ({ viewModel.setFilter(null) }) else null)
-                            if (!largeText) MapFilters(state, viewModel)
+                            MapFilters(state, viewModel, Modifier.align(Alignment.BottomEnd)
+                                .padding(end = 16.dp, bottom = (if (floatingMap) padding.calculateBottomPadding() else 0.dp) + 64.dp))
                             if (state.readingsState == ReadingsState.Failed) Surface(Modifier.align(Alignment.Center).padding(16.dp), shape = RoundedCornerShape(16.dp)) {
                                 EmptyState("Readings could not load", "Your collection has not been reset.", "Retry readings", viewModel::retryReadings)
                             }
@@ -71,45 +84,94 @@ import org.maplibre.compose.style.BaseStyle
             }
         }
     }
-    state.selectedReading?.let { ReadingDetails(it, viewModel::closeDetails, viewModel::showOnMap, onOpenSettings) }
+    if (editingLocation == null) state.selectedReading?.let { ReadingDetails(it, viewModel::closeDetails, viewModel::showOnMap, onOpenSettings,
+        onSetLocation = { reading -> editingLocation = reading },
+        onDescriptionChange = { text -> viewModel.updateLocationDescription(it.id, text) },
+        descriptionSaving = state.descriptionSavingId == it.id, descriptionFailed = state.descriptionErrorId == it.id) }
+    editingLocation?.let { reading -> LocationPicker(reading, baseStyle, { editingLocation = null },
+        onSave = { latitude, longitude -> viewModel.setManualLocation(reading, latitude, longitude) }) }
     if (state.captureVisible && !state.permissionLaunched && state.selectedReading == null) CaptureStatus(state, viewModel, onRecord, onRequestPermission, onOpenSettings)
 }
 
-@Composable private fun AppHeader() {
+@Composable private fun AppHeader(onOpenSettings: () -> Unit) {
     Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).padding(20.dp, 16.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(buildAnnotatedString { append("SagapMo"); withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) { append("?") } }, style = MaterialTheme.typography.titleLarge)
+            Text("SagapMo", style = MaterialTheme.typography.titleLarge)
             Text("BatStateU · Alangilan", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
-            Text("On this phone", Modifier.padding(10.dp, 8.dp).widthIn(max = 104.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        AppTooltip("Settings") {
+            FilledTonalIconButton(onClick = onOpenSettings, modifier = Modifier.size(48.dp),
+                colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                AppIcon(AppSymbol.SETTINGS, "Settings")
+            }
         }
     }
 }
 
 @Composable private fun RecordPanel(state: AppUiState, onRecord: () -> Unit, onRetrySave: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(20.dp, 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-            AppIcon(AppSymbol.INFO, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            Column(Modifier.weight(1f)) {
-                Text(if (state.destination == Destination.MAP) "Pins are individual samples" else "Your readings stay with you", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                Text(if (state.destination == Destination.MAP) "Areas without pins have not been sampled." else "Stored on this phone. No account needed.",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
         val retry = state.capturePhase == CapturePhase.SAVE_FAILED && !state.captureVisible
         PrimaryAction(if (retry) "Retry save" else if (state.recording) "Recording…" else "Record reading",
             if (retry) onRetrySave else onRecord, enabled = retry || (!state.recording && state.pendingSave == null), symbol = AppSymbol.RECORD)
     }
 }
 
-@Composable private fun MapFilters(state: AppUiState, model: SagapMoViewModel) {
-    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Filters(state, model::setFilter)
-        Surface(shape = RoundedCornerShape(6.dp), shadowElevation = 2.dp) {
-            Text("${state.visibleReadings.count { it.latitude != null }} pinned · ${state.visibleReadings.count { it.latitude == null }} without a pin",
-                Modifier.padding(10.dp, 6.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+@Composable private fun FloatingNavigation(state: AppUiState, onDestination: (Destination) -> Unit,
+    onRecord: () -> Unit, onRetrySave: () -> Unit) {
+    val retry = state.capturePhase == CapturePhase.SAVE_FAILED && !state.captureVisible
+    val label = if (retry) "Retry save" else if (state.recording) "Recording…" else "Record reading"
+    Box(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(12.dp, 14.dp)) {
+        Surface(Modifier.fillMaxWidth().height(72.dp), shape = CircleShape,
+            color = MaterialTheme.colorScheme.surface, shadowElevation = 12.dp) {
+            Row(Modifier.padding(horizontal = 14.dp), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                Destination.entries.forEach { destination ->
+                    if (destination == Destination.READINGS) {
+                        AppTooltip(label) {
+                            FilledIconButton(if (retry) onRetrySave else onRecord,
+                                Modifier.size(64.dp).offset(y = (-3).dp),
+                                enabled = retry || (!state.recording && state.pendingSave == null),
+                                colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary)) {
+                                AppIcon(AppSymbol.RECORD, label)
+                            }
+                        }
+                    }
+                    val selected = state.destination == destination
+                    AppTooltip(if (destination == Destination.MAP) "Map" else "Readings") {
+                        Surface(Modifier.size(52.dp).selectable(selected, onClick = { onDestination(destination) }, role = Role.Tab)
+                            .semantics { contentDescription = if (destination == Destination.MAP) "Map" else "Readings" },
+                            shape = CircleShape, color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                            contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) {
+                            Box(contentAlignment = Alignment.Center) {
+                                AppIcon(if (destination == Destination.MAP) AppSymbol.HOME else AppSymbol.LIST)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable private fun MapFilters(state: AppUiState, model: SagapMoViewModel, modifier: Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(null, com.sagapmo.app.reading.ConnectionType.WIFI, com.sagapmo.app.reading.ConnectionType.MOBILE).forEach { type ->
+            val active = state.filter == type
+            AppTooltip(type?.let { "${it.label()} connections" } ?: "All connections") {
+                IconButton({ model.setFilter(type) }, Modifier.size(48.dp).testTag("filter-${type?.name ?: "ALL"}")
+                    .semantics { selected = active }) {
+                    Surface(Modifier.size(40.dp), shape = CircleShape, shadowElevation = 2.dp,
+                        color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                        contentColor = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant) {
+                        Box(contentAlignment = Alignment.Center) {
+                            if (type == null) Icon(painterResource(R.drawable.ic_connections_all), "All connections", Modifier.size(32.dp))
+                            else AppIcon(type.symbol(), "${type.label()} connections", Modifier.size(22.dp))
+                        }
+                    }
+                }
+            }
         }
     }
 }

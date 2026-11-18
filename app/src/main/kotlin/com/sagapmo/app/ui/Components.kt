@@ -22,7 +22,16 @@ import java.time.*
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable fun AppTooltip(label: String, content: @Composable () -> Unit) {
+    TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+        tooltip = { PlainTooltip { Text(label) } }, state = rememberTooltipState(), content = content)
+}
+
 enum class AppSymbol(val data: String) {
+    DELETE("M3,6 L21,6 M9,6 L9,3 L15,3 L15,6 M5,6 L6,21 L18,21 L19,6 M10,10 L10,17 M14,10 L14,17"),
+    HOME("M4,10 L12,3 L20,10 L20,21 L14,21 L14,14 L10,14 L10,21 L4,21 Z"),
+    SETTINGS("M9,3 L8.5,5 L6.5,6 L4.5,5.5 L2.5,8.5 L4,10 L4,13 L2.5,15 L4.5,18 L6.5,17.5 L8.5,18.5 L9,21 L15,21 L15.5,18.5 L17.5,17.5 L19.5,18 L21.5,15 L20,13 L20,10 L21.5,9 L19.5,6 L17.5,6.5 L15.5,5.5 L15,3 Z M15,12 A3,3 0,1 1,9 12 A3,3 0,1 1,15 12"),
     WIFI("M3,8.5 A14,14 0,0 1,21 8.5 M6,12 A9,9 0,0 1,18 12 M9,15.5 A4,4 0,0 1,15 15.5 M11,19 L13,19"),
     MOBILE("M4,20 L4,17 M9,20 L9,13 M14,20 L14,9 M19,20 L19,4"),
     MAP("M3,5 L9,3 L15,5 L21,3 L21,19 L15,21 L9,19 L3,21 Z M9,3 L9,19 M15,5 L15,21"),
@@ -64,6 +73,12 @@ fun NoLocationReason.explanation() = when (this) {
     NoLocationReason.LOCATION_INACCURATE -> "Location was too imprecise. Saved without a pin."
     NoLocationReason.LOCATION_TIMEOUT -> "Location timed out. Saved without a pin."
 }
+fun Reading.locationSummary(): String = when {
+    latitude == null -> "No pin · ${noLocationReason?.explanation()?.removeSuffix(" Saved without a pin.") ?: "Location unavailable."}"
+    locationManuallySet -> "On map · Set manually"
+    noLocationReason in setOf(NoLocationReason.LOCATION_INACCURATE, NoLocationReason.APPROXIMATE_ONLY) -> "On map · Approximate location" + (accuracyMetres?.let { " (±${it.toInt()} m)" } ?: " (accuracy unknown)")
+    else -> "On map · Accuracy ±${accuracyMetres?.toInt()} m"
+}
 @Composable fun ratingPair(rating: Rating): Pair<Color, Color> = LocalRatingColors.current.let {
     when (rating) { Rating.GOOD -> it.good to it.goodBg; Rating.FAIR -> it.fair to it.fairBg; Rating.POOR -> it.poor to it.poorBg }
 }
@@ -77,25 +92,23 @@ fun NoLocationReason.explanation() = when (this) {
     }
 }
 @Composable fun Filters(state: AppUiState, onFilter: (ConnectionType?) -> Unit, modifier: Modifier = Modifier) {
-    BoxWithConstraints(modifier.fillMaxWidth()) {
-        val chipWidth = (maxWidth - 16.dp) / 3
-        Row(Modifier.horizontalScroll(rememberScrollState()).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(null, ConnectionType.WIFI, ConnectionType.MOBILE).forEach { type ->
-                FilterChip(selected = state.filter == type, onClick = { onFilter(type) },
-                    modifier = Modifier.widthIn(min = chipWidth).heightIn(min = 48.dp).testTag("filter-${type?.name ?: "ALL"}"),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.secondary,
-                        containerColor = MaterialTheme.colorScheme.surface, labelColor = MaterialTheme.colorScheme.onSurface,
-                        iconColor = MaterialTheme.colorScheme.onSurface,
-                        selectedLabelColor = MaterialTheme.colorScheme.onSecondary, selectedLeadingIconColor = MaterialTheme.colorScheme.onSecondary),
-                    border = BorderStroke(1.dp, if (state.filter == type) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline),
-                    leadingIcon = type?.let { { AppIcon(it.symbol(), modifier = Modifier.size(18.dp)) } },
-                    label = {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(type?.label() ?: "All", style = MaterialTheme.typography.labelMedium)
-                            Text(state.allReadings.count { type == null || it.connectionType == type }.toString(), style = MaterialTheme.typography.bodySmall)
-                        }
-                    })
+    FlowRow(modifier.fillMaxWidth().selectableGroup(), maxItemsInEachRow = 3,
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(null, ConnectionType.WIFI, ConnectionType.MOBILE).forEach { type ->
+            val active = state.filter == type
+            Surface(onClick = { onFilter(type) },
+                modifier = Modifier.weight(1f).widthIn(min = 96.dp).heightIn(min = 48.dp)
+                    .testTag("filter-${type?.name ?: "ALL"}").semantics { selected = active },
+                shape = RoundedCornerShape(10.dp),
+                color = if (active) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surface,
+                contentColor = if (active) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurface,
+                border = BorderStroke(1.dp, if (active) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline)) {
+                Row(Modifier.padding(8.dp, 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    if (type != null) AppIcon(type.symbol(), modifier = Modifier.size(18.dp))
+                    Text(type?.label() ?: "All", style = MaterialTheme.typography.labelMedium)
+                    Text(state.allReadings.count { type == null || it.connectionType == type }.toString(), style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
     }

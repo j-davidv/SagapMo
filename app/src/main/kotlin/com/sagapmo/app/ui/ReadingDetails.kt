@@ -16,7 +16,8 @@ import androidx.compose.ui.text.font.FontWeight
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun ReadingDetails(reading: Reading, onDismiss: () -> Unit, onShowOnMap: (Reading) -> Unit,
-    onOpenSettings: () -> Unit = {}) {
+    onOpenSettings: () -> Unit = {}, onSetLocation: ((Reading) -> Unit)? = null,
+    onDescriptionChange: ((String) -> Unit)? = null, descriptionSaving: Boolean = false, descriptionFailed: Boolean = false) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), containerColor = MaterialTheme.colorScheme.surface) {
         Column(Modifier.testTag("reading-details").verticalScroll(rememberScrollState()).padding(24.dp, 0.dp, 24.dp, 26.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -37,24 +38,24 @@ import androidx.compose.ui.text.font.FontWeight
                 val offset = Instant.ofEpochMilli(reading.capturedAtEpochMillis).atZone(ZoneId.systemDefault()).offset.id.let { if (it == "Z") "+00:00" else it }
                 Text("Local time · UTC$offset", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (reading.noLocationReason == null) {
+            if (reading.latitude != null) {
                 Column {
                     DetailRow("Coordinates", String.format(Locale.US, "%.5f, %.5f", reading.latitude, reading.longitude))
-                    DetailRow("Reported accuracy", "±${reading.accuracyMetres.toString().removeSuffix(".0")} metres")
-                    DetailRow("Location age at capture", "${(reading.locationAgeMillisAtCapture!! / 1000.0).toString().removeSuffix(".0")} seconds")
-                    DetailRow("Signal age at capture", reading.signalAgeMillisAtCapture?.let { "${(it / 1000.0).toString().removeSuffix(".0")} seconds" } ?: "Unavailable for Wi-Fi")
+                    if (!reading.locationManuallySet) DetailRow("Reported accuracy", reading.accuracyMetres?.let { "±${it.toString().removeSuffix(".0")} metres" } ?: "Unknown")
+                    reading.locationAgeMillisAtCapture?.let { age -> DetailRow("Location age at capture", "${age / 1000.0} seconds") }
+                    if (reading.locationManuallySet) DetailRow("Location source", "Set manually")
+                    if (reading.noLocationReason in setOf(NoLocationReason.LOCATION_INACCURATE, NoLocationReason.APPROXIMATE_ONLY)) InfoBox("Approximate location", "The phone reported approximate or uncertain coordinates. You can correct the pin using Set location.", warning = true)
                 }
             } else {
                 DetailRow("Map pin", "Not available")
-                DetailRow("Signal age at capture", reading.signalAgeMillisAtCapture?.let { "${it / 1000.0} seconds" } ?: "Unavailable for Wi-Fi")
-                InfoBox("Saved without a pin", reading.noLocationReason.explanation(), warning = true)
-                Text("This reading stays in your list. A later location will belong to a new reading.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                InfoBox("Saved without a pin", reading.noLocationReason?.explanation() ?: "No location available.", warning = true)
+                Text("This reading stays in your list. You can add a pin using Set location.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (reading.noLocationReason in setOf(NoLocationReason.PERMISSION_DENIED, NoLocationReason.APPROXIMATE_ONLY)) {
                     TextButton(onOpenSettings, Modifier.heightIn(min = 48.dp)) { Text("Open app settings") }
                 }
             }
-            if (reading.connectionType == ConnectionType.WIFI) Text("Wi-Fi measurement age unavailable. Android does not provide a timestamp for this RSSI value.",
-                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            onDescriptionChange?.let { LocationDescriptionEditor(reading, descriptionSaving, descriptionFailed, it) }
+            onSetLocation?.let { setLocation -> OutlinedButton({ setLocation(reading) }, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { AppIcon(AppSymbol.PIN); Spacer(Modifier.width(8.dp)); Text("Set location") } }
             if (reading.latitude != null) PrimaryAction("Show on map", { onShowOnMap(reading) }, symbol = AppSymbol.MAP)
             else PrimaryAction("Back to readings", onDismiss)
         }
@@ -64,8 +65,10 @@ import androidx.compose.ui.text.font.FontWeight
 @Composable internal fun SheetHeading(title: String, closeLabel: String, onDismiss: () -> Unit, closable: Boolean = true) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
-        if (closable) FilledTonalIconButton(onDismiss, Modifier.size(48.dp),
-            colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface)) { AppIcon(AppSymbol.CLOSE, closeLabel) }
+        if (closable) AppTooltip(closeLabel) {
+            if (closable) FilledTonalIconButton(onDismiss, Modifier.size(48.dp),
+                colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface)) { AppIcon(AppSymbol.CLOSE, closeLabel) }
+        }
     }
 }
 @Composable internal fun InfoBox(title: String, text: String, warning: Boolean = false) {

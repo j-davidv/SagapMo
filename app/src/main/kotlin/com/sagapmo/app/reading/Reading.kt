@@ -2,6 +2,7 @@ package com.sagapmo.app.reading
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 
 enum class ConnectionType { WIFI, MOBILE }
 enum class SignalUnit { DBM, ANDROID_LEVEL }
@@ -25,4 +26,6 @@ data class Reading(
     val accuracyMetres: Float?,
     val locationAgeMillisAtCapture: Long?,
     val noLocationReason: NoLocationReason?,
+    @ColumnInfo(defaultValue = "0") val locationManuallySet: Boolean = false,
+    @ColumnInfo(defaultValue = "''") val locationDescription: String = "",
 )

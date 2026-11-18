@@ -32,11 +32,13 @@ class CampusMapScreenTest {
             }
         }
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("pin-test-wifi").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Test map attribution").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Map attribution").performClick()
+        compose.onNodeWithText("Test map attribution").assertExists()
         compose.onNodeWithTag("pin-test-wifi").assertHasClickAction().performClick()
         compose.onNodeWithText("Reading details").assertIsDisplayed()
         assertEquals(located, selected)
         compose.onNodeWithTag("pin-test-mobile").assertDoesNotExist()
-        compose.onNodeWithText("OpenFreeMap · OpenMapTiles · © OpenStreetMap").assertExists()
     }
     @Test fun focusMovesToSelectedGeographicReading() {
         val distant = sampleReading("distant").copy(latitude = 13.7900, longitude = 121.0800)
@@ -96,7 +98,7 @@ class CampusMapScreenTest {
         compose.onNodeWithText("Map could not load").assertDoesNotExist()
     }
     companion object {
-        val localStyle = BaseStyle.Json("""{"version":8,"sources":{},"layers":[{"id":"background","type":"background","paint":{"background-color":"#eaece6"}}]}""")
+        val localStyle = BaseStyle.Json("""{"version":8,"sources":{"credits":{"type":"geojson","attribution":"Test map attribution","data":{"type":"FeatureCollection","features":[]}}},"layers":[{"id":"background","type":"background","paint":{"background-color":"#eaece6"}}]}""")
         fun resourceStyle(kind: String): BaseStyle {
             val prefix = "sagapmo-test://${UUID.randomUUID()}"
             val background = """{"id":"background","type":"background","paint":{"background-color":"#eaece6"}}"""

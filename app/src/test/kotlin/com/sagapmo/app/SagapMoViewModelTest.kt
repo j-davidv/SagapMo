@@ -17,6 +17,29 @@ class SagapMoViewModelTest {
     private lateinit var model: SagapMoViewModel
     @Before fun setUp() { Dispatchers.setMain(dispatcher); model = SagapMoViewModel(signal, location, dao, dispatcher) }
     @After fun tearDown() { Dispatchers.resetMain() }
+    @Test fun descriptionAutoSaveKeepsLatestTextAfterDetailsClose() = runTest(dispatcher) {
+        model.record(false); advanceUntilIdle()
+        val id = dao.rows.value.single().id
+        model.updateLocationDescription(id, "First draft")
+        advanceTimeBy(200)
+        model.updateLocationDescription(id, "Latest text")
+        model.closeDetails()
+        advanceUntilIdle()
+        assertEquals("Latest text", dao.rows.value.single().locationDescription)
+        assertNull(model.uiState.value.descriptionSavingId)
+        assertNull(model.uiState.value.descriptionErrorId)
+    }
+    @Test fun descriptionsAreTrimmedBoundedAndCannotCreateMissingReadings() = runTest(dispatcher) {
+        model.record(false); advanceUntilIdle()
+        val original = dao.rows.value.single()
+        assertTrue(model.setLocationDescription(original.id, "  Outside CICS  "))
+        assertEquals(original.copy(locationDescription = "Outside CICS"), dao.rows.value.single())
+        assertFalse(model.setLocationDescription(original.id, "x".repeat(201)))
+        assertFalse(model.setLocationDescription("missing", "Nowhere"))
+        assertEquals(1, dao.rows.value.size)
+        assertTrue(model.setLocationDescription(original.id, ""))
+        assertEquals(original, dao.rows.value.single())
+    }
     @Test fun doubleTapCreatesOneOperation() = runTest(dispatcher) {
         model.record(false); model.record(false); advanceUntilIdle()
         assertEquals(1, dao.rows.value.size); assertEquals(CapturePhase.SAVED, model.uiState.value.capturePhase)
@@ -124,6 +147,18 @@ private class FakeDao : ReadingDao() {
     override fun observeReadings(type: ConnectionType?): Flow<List<Reading>> = flow {
         if (failRead) error("disk read failed")
         emitAll(rows.map { rows -> rows.filter { type == null || it.connectionType == type } })
+    }
+    override suspend fun deleteById(id: String) { rows.value = rows.value.filterNot { it.id == id } }
+    override suspend fun setManualLocation(id: String, latitude: Double, longitude: Double): Int {
+        if (rows.value.none { it.id == id }) return 0
+        rows.value = rows.value.map { if (it.id == id) it.copy(latitude = latitude, longitude = longitude,
+            accuracyMetres = null, locationAgeMillisAtCapture = null, noLocationReason = null, locationManuallySet = true) else it }
+        return 1
+    }
+    override suspend fun setLocationDescription(id: String, description: String): Int {
+        if (rows.value.none { it.id == id }) return 0
+        rows.value = rows.value.map { if (it.id == id) it.copy(locationDescription = description) else it }
+        return 1
     }
     override suspend fun getById(id: String) = rows.value.find { it.id == id }
     override suspend fun insertIfAbsent(reading: Reading): Long {

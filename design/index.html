@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SagapMo? · Pilot design reference</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#prototype">Skip to prototype</a>
+  <header class="studio-header">
+    <a class="wordmark" href="#prototype">SagapMo<span>?</span></a>
+    <span class="header-divider"></span><span class="reference-label">Pilot design reference</span>
+    <a class="guide-link" href="#screen-guide">Screen guide <span aria-hidden="true">↗</span></a>
+  </header>
+  <main>
+    <section class="workspace" aria-label="Interactive design reference">
+      <aside class="controls">
+        <h1>Capture a signal.<br> Keep the reading.</h1>
+        <p class="intro">A calmer campus field tool. One reading at a time, always within reach.</p>
+        <div class="control-group">
+          <h2>Try the prototype</h2>
+          <p>Tap the map pins, switch views, or record a sample.</p>
+          <label for="scenario">Preview a state</label>
+          <select id="scenario">
+            <optgroup label="Main screens">
+              <option value="ready">Map · saved samples</option>
+              <option value="readings">Readings · newest first</option>
+              <option value="detail">Reading details</option>
+              <option value="empty">First use · no readings</option>
+              <option value="filter-empty">Filter · no matches</option>
+            </optgroup>
+            <optgroup label="Recording">
+              <option value="permission">Explain precise location</option>
+              <option value="locating">Getting location</option>
+              <option value="saving">Saving reading</option>
+              <option value="saved">Reading saved · with pin</option>
+              <option value="saved-no-pin">Reading saved · without pin</option>
+              <option value="save-error">Storage failure · retry save</option>
+              <option value="interrupted">Capture interrupted</option>
+            </optgroup>
+            <optgroup label="Loading and recovery">
+              <option value="map-loading">Map loading</option>
+              <option value="map-error">Map could not load</option>
+              <option value="read-loading">Readings loading</option>
+              <option value="read-error">Readings could not load</option>
+              <option value="no-network">No supported connection</option>
+              <option value="vpn">VPN connection</option>
+              <option value="signal-error">Signal unavailable</option>
+              <option value="stale-signal">Mobile signal too old</option>
+              <option value="changed">Connection changed</option>
+            </optgroup>
+          </select>
+          <label for="capture-type">Simulated active connection</label>
+          <select id="capture-type"><option value="WIFI">Wi-Fi</option><option value="MOBILE">Mobile</option></select>
+          <label for="location-reason">Missing-location example</label>
+          <select id="location-reason">
+            <option value="APPROXIMATE_ONLY">Approximate location only</option>
+            <option value="PERMISSION_DENIED">Permission denied</option>
+            <option value="LOCATION_DISABLED">Location services off</option>
+            <option value="LOCATION_UNAVAILABLE">Location unavailable</option>
+            <option value="LOCATION_STALE">Location too old</option>
+            <option value="LOCATION_INACCURATE">Location too imprecise</option>
+            <option value="LOCATION_TIMEOUT">Location timed out</option>
+          </select>
+          <div class="utility-row"><button id="theme-toggle" class="quiet-button" aria-pressed="false">Dark appearance</button><button id="reset" class="quiet-button">Reset demo</button></div>
+        </div>
+        <p class="demo-disclaimer">Design prototype only. Readings and map geometry are illustrative. Nothing is measured or saved to your device.</p>
+      </aside>
+
+      <div class="preview-column" id="prototype">
+        <div class="preview-caption"><span>Android · compact</span><span>Interactive preview</span></div>
+        <div class="device" id="device">
+          <div class="system-bar" aria-hidden="true"><span>10:42</span><div class="system-icons"><svg viewBox="0 0 48 16" width="48" height="16"><path d="M1 14h3V9H1zm6 0h3V6H7zm6 0h3V2h-3z" fill="currentColor"/><rect x="26" y="3" width="18" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M45 6v4" stroke="currentColor" stroke-width="2"/><rect x="28" y="5" width="13" height="6" rx="1" fill="currentColor"/></svg></div></div>
+          <div class="app-header"><div><span class="app-wordmark">SagapMo<span>?</span></span><p>BatStateU · Alangilan</p></div><button type="button" class="icon-button" data-action="settings" aria-label="Settings" aria-haspopup="dialog"><span data-icon="settings"></span></button></div>
+          <div id="app-content" class="app-content"></div>
+          <div id="record-panel" class="record-panel"></div>
+          <nav class="app-nav" aria-label="App destinations">
+            <button type="button" data-view="map" aria-current="page" aria-label="Map" title="Map"><span class="nav-icon" data-icon="home"></span></button>
+            <button type="button" id="record-button" class="nav-record" data-action="record" aria-label="Record reading" title="Record reading"><span data-icon="capture"></span></button>
+            <button type="button" data-view="readings" aria-label="Readings" title="Readings"><span class="nav-icon" data-icon="list"></span></button>
+          </nav>
+          <div class="gesture-area" aria-hidden="true"><span></span></div>
+          <dialog id="sheet" class="sheet" aria-labelledby="sheet-title"><div id="sheet-content"></div></dialog>
+          <div id="announcement" class="sr-only" role="status" aria-live="polite"></div>
+        </div>
+        <p class="preview-footnote">Sample data · schematic map · no live sensors</p>
+      </div>
+
+      <aside class="design-notes" aria-label="Design rationale">
+        <div class="note-heading"><span class="small-line"></span><h2>Built for the walk.</h2></div>
+        <p>Less telemetry to decode.<br>More certainty at every tap.</p>
+        <div class="design-note"><h3>One clear next step</h3><p>A fixed recording action stays in thumb reach on both screens.</p></div>
+        <div class="design-note"><h3>A sample, not a promise</h3><p>Named ratings and distinct connection icons describe individual readings, never campus-wide coverage.</p></div>
+        <div class="design-note"><h3>No pin? Still a reading.</h3><p>Missing location gets a plain explanation. Valid measurements remain in the list.</p></div>
+        <div class="palette-strip" aria-label="Design palette"><span style="background:#a3082c"></span><span style="background:#202725"></span><span style="background:#eaece6"></span><span style="background:#fafbf8"></span></div>
+        <p class="palette-caption">Campus crimson. Quiet surfaces.<br>Color reserved for action and meaning.</p>
+        <a class="text-link" href="#screen-guide">Read the screen decisions <span aria-hidden="true">↓</span></a>
+      </aside>
+    </section>
+
+    <section id="screen-guide" class="screen-guide">
+      <div class="section-title"><h2>A reference for the real build.</h2><p>The approved pilot spec owns behavior. This design makes that behavior easier to understand.</p></div>
+      <div class="guide-grid">
+        <article><span class="guide-icon" data-icon="map"></span><h3>Map</h3><p>Samples sit above a quiet basemap. The filters only change what is shown. A pin opens the same details as its list row.</p><ul><li>Keep attribution above all anchored controls.</li><li>Explain that unsampled areas have no rating.</li><li>Keep Readings available when tiles fail.</li></ul></article>
+        <article><span class="guide-icon" data-icon="list"></span><h3>Readings</h3><p>A scan-friendly list puts connection, rating, value, and time first. Location is secondary and always explicit.</p><ul><li>Newest captured sample appears first.</li><li>Filter selection follows you between views.</li><li>Every saved sample has a details view.</li></ul></article>
+        <article><span class="guide-icon" data-icon="record"></span><h3>Recording</h3><p>Explain location at the moment it is needed. Show progress, preserve a valid signal without a pin, and confirm only after saving.</p><ul><li>One active operation across both views.</li><li>Retry save reuses the same candidate.</li><li>Show saved reading reveals a hidden type.</li></ul></article>
+      </div>
+      <div class="handoff-line"><p><strong>Implementation handoff</strong><br>Screen states, component sizes, copy, and Compose mapping are in <code>design/README.md</code>. Reusable tokens are in <code>DESIGN.md</code>.</p><a class="text-link" href="#prototype">Return to prototype ↑</a></div>
+    </section>
+  </main>
+  <footer class="studio-footer"><span>SagapMo? · Pilot UI reference</span><span>17 November 2026 · Android implementation follows separately</span></footer>
+</body>
+</html>

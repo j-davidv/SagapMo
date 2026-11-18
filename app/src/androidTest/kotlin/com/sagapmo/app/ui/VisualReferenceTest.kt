@@ -46,7 +46,7 @@ class VisualReferenceTest {
         compose.onNodeWithText("Reading details").assertIsDisplayed()
         capture("$set-detail")
         compose.onNodeWithContentDescription("Close reading details").performClick()
-        compose.onNodeWithText("Map", useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription("Map").performClick()
         compose.waitUntil(25_000) { compose.onAllNodesWithTag("map-ready").fetchSemanticsNodes().isNotEmpty() }
         capture("$set-map")
         compose.runOnUiThread { model.record(true) }
@@ -65,12 +65,12 @@ class VisualReferenceTest {
         capture("$set-empty")
         compose.runOnUiThread { style = BaseStyle.Uri("https://127.0.0.1:1/unavailable.json") }
         compose.waitUntil(20_000) { compose.onAllNodesWithText("Retry map").fetchSemanticsNodes().isNotEmpty() }
-        val filterBottom = compose.onNodeWithTag("filter-ALL").fetchSemanticsNode().boundsInRoot.bottom
-        assertTrue(compose.onNodeWithText("Map could not load").fetchSemanticsNode().boundsInRoot.top >= filterBottom)
+        val filterBottom = compose.onNodeWithTag("filter-MOBILE").fetchSemanticsNode().boundsInRoot.bottom
+        assertTrue(compose.onNodeWithContentDescription("Return to campus overview").fetchSemanticsNode().boundsInRoot.top > filterBottom)
         capture("$set-map-error")
         compose.onNodeWithText("View readings").performScrollTo().performClick()
         compose.onNodeWithText("Your readings").assertIsDisplayed()
-        compose.onNodeWithText("Record reading").assertIsEnabled()
+        compose.onNodeWithContentDescription("Record reading").assertIsEnabled()
     }
     private fun capture(name: String) {
         compose.waitForIdle(); InstrumentationRegistry.getInstrumentation().waitForIdleSync(); SystemClock.sleep(600)
@@ -99,6 +99,18 @@ private fun referenceRows(): List<Reading> {
 private class VisualDao(initial: List<Reading>) : ReadingDao() {
     val rows = MutableStateFlow(initial)
     override fun observeReadings(type: ConnectionType?) = rows.asStateFlow()
+    override suspend fun deleteById(id: String) { rows.value = rows.value.filterNot { it.id == id } }
+    override suspend fun setManualLocation(id: String, latitude: Double, longitude: Double): Int {
+        if (rows.value.none { it.id == id }) return 0
+        rows.value = rows.value.map { if (it.id == id) it.copy(latitude = latitude, longitude = longitude,
+            accuracyMetres = null, locationAgeMillisAtCapture = null, noLocationReason = null, locationManuallySet = true) else it }
+        return 1
+    }
+    override suspend fun setLocationDescription(id: String, description: String): Int {
+        if (rows.value.none { it.id == id }) return 0
+        rows.value = rows.value.map { if (it.id == id) it.copy(locationDescription = description) else it }
+        return 1
+    }
     override suspend fun getById(id: String) = rows.value.find { it.id == id }
     override suspend fun insertIfAbsent(reading: Reading): Long {
         if (getById(reading.id) != null) return -1

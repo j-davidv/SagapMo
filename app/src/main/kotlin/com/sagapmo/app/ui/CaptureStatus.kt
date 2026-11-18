@@ -92,9 +92,10 @@ fun CaptureError.explanation() = when (this) {
                             Text("${reading.rawDisplay()} · ${reading.shortTime().substringAfter(" · ")}")
                         }
                     }
-                    InfoBox(if (reading.noLocationReason == null) "Saved with a map pin" else "Saved without a pin",
-                        reading.noLocationReason?.explanation() ?: "Your reading is in the list and on the map.", warning = reading.noLocationReason != null)
+                    InfoBox(if (reading.latitude != null) "Saved with a map pin" else "Saved without a pin",
+                        reading.locationSummary(), warning = reading.noLocationReason != null)
                     if (state.filter != null && state.filter != reading.connectionType) Text("Your ${state.filter.label()} filter hides this ${reading.connectionType.label()} sample. Show saved reading will reveal it.")
+                    LocationDescriptionEditor(reading, state.descriptionSavingId == reading.id, state.descriptionErrorId == reading.id) { text -> model.updateLocationDescription(reading.id, text) }
                     PrimaryAction("Show saved reading", { model.openReading(reading) })
                     TextButton(model::dismissCapture, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Done") }
                 }
