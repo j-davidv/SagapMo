@@ -1,4 +1,4 @@
-# SagapMo?
+# SagapMo
 
 Native Android pilot: record the active default Wi-Fi or Mobile signal, save each reading privately with Room, and find it in Readings or as a MapLibre pin. Android 12 (API 31) or later is required.
 
