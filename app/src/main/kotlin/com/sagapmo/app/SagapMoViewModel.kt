@@ -96,11 +96,12 @@ class SagapMoViewModel(
             is SignalResult.Available -> {
                 val access = withContext(ioDispatcher) { locationReader.currentAccess() }
                 var candidate = assembleReading(requireNotNull(operationId), signal.sample, location, access)
+                    .copy(wifiConnectedAgeMillis = signal.sample.connectionAgeMillis)
                 if (state.value.includeSpeedTest) {
                     state.update { it.copy(capturePhase = CapturePhase.RUNNING_SPEED_TEST) }
                     var lastProgress: SpeedTestProgress? = null
                     try {
-                        speedTestEngine.runSpeedTest().collect { progress ->
+                        speedTestEngine.runSpeedTest(signal.sample.connectionAgeMillis).collect { progress ->
                             lastProgress = progress
                             state.update { it.copy(speedTestProgress = progress) }
                         }

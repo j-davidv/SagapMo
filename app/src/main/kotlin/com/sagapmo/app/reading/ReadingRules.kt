@@ -90,4 +90,5 @@ fun validateReading(reading: Reading) = with(reading) {
     uploadMbps?.let { require(it >= 0.0 && it.isFinite()) }
     latencyMs?.let { require(it >= 0.0 && it.isFinite()) }
     jitterMs?.let { require(it >= 0.0 && it.isFinite()) }
+    wifiConnectedAgeMillis?.let { require(it >= 0) }
 }

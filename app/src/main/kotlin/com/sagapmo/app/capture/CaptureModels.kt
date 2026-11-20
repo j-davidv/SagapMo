@@ -14,6 +14,7 @@ data class SignalSample(
     val signalAgeMillisAtCapture: Long?,
     val capturedAtEpochMillis: Long,
     val capturedElapsedMillis: Long,
+    val connectionAgeMillis: Long? = null,
 )
 sealed interface SignalResult {
     data class Available(val sample: SignalSample) : SignalResult
@@ -21,7 +22,7 @@ sealed interface SignalResult {
 }
 data class ConnectionSnapshot(val networkHandle: Long, val connectionType: ConnectionType, val dataSubscriptionId: Int?)
 sealed interface ConnectionResult {
-    data class Available(val snapshot: ConnectionSnapshot) : ConnectionResult
+    data class Available(val snapshot: ConnectionSnapshot, val connectionAgeMillis: Long? = null) : ConnectionResult
     data class Failed(val error: CaptureError) : ConnectionResult
 }
 
