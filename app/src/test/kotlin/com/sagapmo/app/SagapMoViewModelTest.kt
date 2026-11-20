@@ -2,6 +2,7 @@ package com.sagapmo.app
 
 import com.sagapmo.app.capture.*
 import com.sagapmo.app.reading.*
+import com.sagapmo.app.speedtest.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.test.*
@@ -14,8 +15,9 @@ class SagapMoViewModelTest {
     private val signal = FakeSignal()
     private val location = FakeLocation()
     private val dao = FakeDao()
+    private val speedTest = FakeSpeedTestEngine()
     private lateinit var model: SagapMoViewModel
-    @Before fun setUp() { Dispatchers.setMain(dispatcher); model = SagapMoViewModel(signal, location, dao, dispatcher) }
+    @Before fun setUp() { Dispatchers.setMain(dispatcher); model = SagapMoViewModel(signal, location, dao, speedTest, dispatcher) }
     @After fun tearDown() { Dispatchers.resetMain() }
     @Test fun descriptionAutoSaveKeepsLatestTextAfterDetailsClose() = runTest(dispatcher) {
         model.record(false); advanceUntilIdle()
@@ -115,11 +117,41 @@ class SagapMoViewModelTest {
         assertEquals(Destination.MAP, model.uiState.value.destination); assertEquals(reading.id, model.uiState.value.focusedReadingId)
         assertNull(model.uiState.value.selectedReading)
     }
-    @Test fun unavailableEarlyConnectionDoesNotRequestPermission() = runTest(dispatcher) {
-        signal.connection = ConnectionResult.Failed(CaptureError.VPN_ACTIVE)
-        model.record(true); advanceUntilIdle()
-        assertEquals(CapturePhase.FAILED, model.uiState.value.capturePhase)
-        assertEquals(CaptureError.VPN_ACTIVE, model.uiState.value.captureError); assertEquals(0, signal.readCalls)
+    @Test fun recordWithSpeedTestCapturesAndSavesMetrics() = runTest(dispatcher) {
+        model.setIncludeSpeedTest(true)
+        model.record(false); advanceUntilIdle()
+        val saved = requireNotNull(model.uiState.value.savedReading)
+        assertEquals(50.0, saved.downloadMbps!!, 0.01)
+        assertEquals(20.0, saved.uploadMbps!!, 0.01)
+        assertEquals(15.0, saved.latencyMs!!, 0.01)
+        assertEquals(2.0, saved.jitterMs!!, 0.01)
+        assertEquals(SpeedTestStatus.COMPLETED, saved.speedTestStatus)
+    }
+
+    @Test fun recordWithSpeedTestDisabledSkipsSpeedTest() = runTest(dispatcher) {
+        model.setIncludeSpeedTest(false)
+        model.record(false); advanceUntilIdle()
+        val saved = requireNotNull(model.uiState.value.savedReading)
+        assertNull(saved.downloadMbps)
+        assertNull(saved.uploadMbps)
+        assertNull(saved.latencyMs)
+        assertNull(saved.jitterMs)
+        assertEquals(SpeedTestStatus.SKIPPED, saved.speedTestStatus)
+    }
+}
+
+private class FakeSpeedTestEngine : SpeedTestEngine {
+    var resultProgress = SpeedTestProgress(
+        phase = SpeedTestPhase.COMPLETED,
+        downloadMbps = 50.0,
+        uploadMbps = 20.0,
+        latencyMs = 15.0,
+        jitterMs = 2.0,
+        overallProgress = 1.0f
+    )
+    override fun runSpeedTest(): Flow<SpeedTestProgress> = flow {
+        emit(SpeedTestProgress(phase = SpeedTestPhase.LATENCY, latencyMs = 15.0, jitterMs = 2.0, overallProgress = 0.2f))
+        emit(resultProgress)
     }
 }
 

@@ -16,9 +16,40 @@ class ReadingDaoTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private lateinit var database: ReadingDatabase
     private val dao get() = database.readings()
-    private fun open() = Room.databaseBuilder(context, ReadingDatabase::class.java, "readings-test.db").addMigrations(ReadingDatabase.MIGRATION_1_2, ReadingDatabase.MIGRATION_2_3).build()
+    private fun open() = Room.databaseBuilder(context, ReadingDatabase::class.java, "readings-test.db")
+        .addMigrations(ReadingDatabase.MIGRATION_1_2, ReadingDatabase.MIGRATION_2_3, ReadingDatabase.MIGRATION_3_4)
+        .build()
     @Before fun setUp() { context.deleteDatabase("readings-test.db"); database = open() }
     @After fun tearDown() { database.close(); context.deleteDatabase("readings-test.db") }
+    @Test fun versionThreeMigrationPreservesReadingsAndAddsSpeedTestColumns() = runBlocking {
+        database.close()
+        context.deleteDatabase("readings-test.db")
+        context.openOrCreateDatabase("readings-test.db", Context.MODE_PRIVATE, null).use { old ->
+            old.execSQL("CREATE TABLE readings (id TEXT NOT NULL PRIMARY KEY, capturedAtEpochMillis INTEGER NOT NULL, connectionType TEXT NOT NULL, rawSignalValue INTEGER NOT NULL, signalUnit TEXT NOT NULL, rating TEXT NOT NULL, signalAgeMillisAtCapture INTEGER, latitude REAL, longitude REAL, accuracyMetres REAL, locationAgeMillisAtCapture INTEGER, noLocationReason TEXT, locationManuallySet INTEGER NOT NULL DEFAULT 0, locationDescription TEXT NOT NULL DEFAULT '')")
+            old.execSQL("INSERT INTO readings (id,capturedAtEpochMillis,connectionType,rawSignalValue,signalUnit,rating,locationDescription) VALUES ('v3',1000,'WIFI',-65,'DBM','GOOD','Library')")
+            old.version = 3
+        }
+        database = open()
+        val migrated = requireNotNull(dao.getById("v3"))
+        assertEquals("Library", migrated.locationDescription)
+        assertNull(migrated.downloadMbps)
+        assertNull(migrated.uploadMbps)
+        assertNull(migrated.latencyMs)
+        assertNull(migrated.jitterMs)
+        assertNull(migrated.speedTestStatus)
+
+        val speedReading = migrated.copy(downloadMbps = 45.5, uploadMbps = 12.3, latencyMs = 15.0, jitterMs = 2.1, speedTestStatus = com.sagapmo.app.speedtest.SpeedTestStatus.COMPLETED)
+        validateReading(speedReading)
+        dao.save(speedReading)
+        database.close(); database = open()
+        val reloaded = requireNotNull(dao.getById("v3"))
+        assertEquals(45.5, reloaded.downloadMbps!!, 0.01)
+        assertEquals(12.3, reloaded.uploadMbps!!, 0.01)
+        assertEquals(15.0, reloaded.latencyMs!!, 0.01)
+        assertEquals(2.1, reloaded.jitterMs!!, 0.01)
+        assertEquals(com.sagapmo.app.speedtest.SpeedTestStatus.COMPLETED, reloaded.speedTestStatus)
+    }
+
     @Test fun versionTwoMigrationPreservesPinAndDescriptionsPersistAcrossReopen() = runBlocking {
         database.close(); context.deleteDatabase("readings-test.db")
         context.openOrCreateDatabase("readings-test.db", Context.MODE_PRIVATE, null).use { old ->

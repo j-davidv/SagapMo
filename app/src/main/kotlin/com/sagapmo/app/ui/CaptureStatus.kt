@@ -13,6 +13,8 @@ import androidx.compose.foundation.BorderStroke
 import com.sagapmo.app.*
 import com.sagapmo.app.capture.CaptureError
 import com.sagapmo.app.reading.*
+import com.sagapmo.app.speedtest.*
+import java.util.Locale
 
 fun CaptureError.explanation() = when (this) {
     CaptureError.NO_CONNECTION -> "Connect to Wi-Fi or mobile data, then try recording again. Saved readings are still available."
@@ -37,6 +39,7 @@ fun CaptureError.explanation() = when (this) {
                 CapturePhase.AWAITING_PERMISSION -> "Add a pin to your reading"
                 CapturePhase.LOCATING -> "Getting location"
                 CapturePhase.ACQUIRING_SIGNAL -> "Reading signal"
+                CapturePhase.RUNNING_SPEED_TEST -> "Measuring internet speed"
                 CapturePhase.SAVING -> "Saving reading"
                 CapturePhase.SAVED -> "Reading saved"
                 CapturePhase.SAVE_FAILED -> "Reading could not be saved"
@@ -84,12 +87,36 @@ fun CaptureError.explanation() = when (this) {
                     TextButton(model::dismissCapture, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Keep browsing") }
                     if (phase != CapturePhase.SAVING) TextButton(model::cancelCapture, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Cancel recording") }
                 }
+                CapturePhase.RUNNING_SPEED_TEST -> {
+                    SpeedTestGauge(state.speedTestProgress)
+                    TextButton(model::dismissCapture, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Keep browsing") }
+                    TextButton(model::cancelCapture, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Cancel recording") }
+                }
                 CapturePhase.SAVED -> state.savedReading?.let { reading ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         AppIcon(AppSymbol.CHECK, tint = LocalRatingColors.current.good)
                         Column {
                             Text("${reading.connectionType.label()} · ${reading.rating.label()}", style = MaterialTheme.typography.bodyLarge)
                             Text("${reading.rawDisplay()} · ${reading.shortTime().substringAfter(" · ")}")
+                        }
+                    }
+                    if (reading.downloadMbps != null) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("Speed Test Results", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Download: ${String.format(Locale.US, "%.1f Mbps", reading.downloadMbps)}", style = MaterialTheme.typography.bodyMedium)
+                                    Text("Upload: ${String.format(Locale.US, "%.1f Mbps", reading.uploadMbps ?: 0.0)}", style = MaterialTheme.typography.bodyMedium)
+                                }
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Latency: ${reading.latencyMs?.let { String.format(Locale.US, "%.0f ms", it) } ?: "--"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Jitter: ${reading.jitterMs?.let { String.format(Locale.US, "%.0f ms", it) } ?: "--"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
                         }
                     }
                     InfoBox(if (reading.latitude != null) "Saved with a map pin" else "Saved without a pin",

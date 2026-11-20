@@ -38,6 +38,14 @@ import androidx.compose.ui.text.font.FontWeight
                 val offset = Instant.ofEpochMilli(reading.capturedAtEpochMillis).atZone(ZoneId.systemDefault()).offset.id.let { if (it == "Z") "+00:00" else it }
                 Text("Local time · UTC$offset", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            if (reading.downloadMbps != null || reading.uploadMbps != null || reading.latencyMs != null) {
+                Column {
+                    reading.downloadMbps?.let { DetailRow("Download Speed", String.format(Locale.US, "%.1f Mbps", it)) }
+                    reading.uploadMbps?.let { DetailRow("Upload Speed", String.format(Locale.US, "%.1f Mbps", it)) }
+                    reading.latencyMs?.let { DetailRow("Network Latency", String.format(Locale.US, "%.0f ms", it)) }
+                    reading.jitterMs?.let { DetailRow("Latency Jitter", String.format(Locale.US, "%.0f ms", it)) }
+                }
+            }
             if (reading.latitude != null) {
                 Column {
                     DetailRow("Coordinates", String.format(Locale.US, "%.5f, %.5f", reading.latitude, reading.longitude))

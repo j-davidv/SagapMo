@@ -86,4 +86,8 @@ fun validateReading(reading: Reading) = with(reading) {
                 (reason == noLocationReason || noLocationReason == NoLocationReason.APPROXIMATE_ONLY))
         }
     }
+    downloadMbps?.let { require(it >= 0.0 && it.isFinite()) }
+    uploadMbps?.let { require(it >= 0.0 && it.isFinite()) }
+    latencyMs?.let { require(it >= 0.0 && it.isFinite()) }
+    jitterMs?.let { require(it >= 0.0 && it.isFinite()) }
 }

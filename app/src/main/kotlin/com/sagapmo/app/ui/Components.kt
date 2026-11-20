@@ -21,6 +21,7 @@ import com.sagapmo.app.reading.*
 import java.time.*
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun AppTooltip(label: String, content: @Composable () -> Unit) {
@@ -119,6 +120,11 @@ fun Reading.locationSummary(): String = when {
             append(reading.rawSignalValue.toString())
             withStyle(SpanStyle(fontSize = 18.sp, fontWeight = FontWeight.Medium)) { append(" dBm") }
         } else append(reading.rawDisplay())
+        if (reading.downloadMbps != null) {
+            withStyle(SpanStyle(fontSize = 18.sp, fontWeight = FontWeight.Normal)) { append("  ·  ") }
+            append(String.format(Locale.US, "%.1f", reading.downloadMbps))
+            withStyle(SpanStyle(fontSize = 18.sp, fontWeight = FontWeight.Medium)) { append(" Mbps") }
+        }
     }, style = MaterialTheme.typography.headlineLarge)
 }
 @Composable fun PrimaryAction(label: String, onClick: () -> Unit, enabled: Boolean = true, symbol: AppSymbol? = null) {

@@ -117,6 +117,16 @@ import androidx.compose.ui.text.style.TextOverflow
             AppIcon(if (reading.latitude == null) AppSymbol.NO_PIN else AppSymbol.PIN, modifier = Modifier.size(16.dp), tint = color)
             Text(reading.locationSummary(), style = MaterialTheme.typography.bodySmall, color = color)
         }
+        if (reading.downloadMbps != null || reading.uploadMbps != null || reading.latencyMs != null) {
+            val speedSummary = listOfNotNull(
+                reading.downloadMbps?.let { "↓ ${String.format(java.util.Locale.US, "%.1f", it)} Mbps" },
+                reading.uploadMbps?.let { "↑ ${String.format(java.util.Locale.US, "%.1f", it)} Mbps" },
+                reading.latencyMs?.let { "${String.format(java.util.Locale.US, "%.0f", it)} ms" }
+            ).joinToString("  ·  ")
+            if (speedSummary.isNotBlank()) {
+                Text(speedSummary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
+            }
+        }
         if (reading.locationDescription.isNotBlank()) Text(reading.locationDescription,
             style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
