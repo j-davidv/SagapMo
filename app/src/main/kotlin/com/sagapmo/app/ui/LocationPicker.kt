@@ -22,7 +22,9 @@ import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Position
 import java.util.Locale
 
-@Composable internal fun LocationPicker(reading: Reading, baseStyle: BaseStyle, onDismiss: () -> Unit,
+import com.sagapmo.app.map.DefaultMapStyle2D
+
+@Composable internal fun LocationPicker(reading: Reading, baseStyle: BaseStyle = DefaultMapStyle2D, onDismiss: () -> Unit,
     onSave: suspend (Double, Double) -> Boolean) {
     val runtime = remember { createMapRuntime { resourceProvider = AndroidSpriteResources } }
     DisposableEffect(runtime) { onDispose { runtime.close() } }
