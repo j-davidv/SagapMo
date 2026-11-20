@@ -44,6 +44,8 @@ enum class AppSymbol(val data: String) {
     CLOSE("M6,6 L18,18 M6,18 L18,6"),
     TARGET("M12,2 L12,5 M12,19 L12,22 M2,12 L5,12 M19,12 L22,12 M19,12 A7,7 0,1 1,5 12 A7,7 0,1 1,19 12 M14.5,12 A2.5,2.5 0,1 1,9.5 12 A2.5,2.5 0,1 1,14.5 12"),
     CHECK("M5,12 L9,16 L19,6"),
+    CHEVRON_DOWN("M6,9 L12,15 L18,9"),
+    CHEVRON_UP("M6,15 L12,9 L18,15"),
 }
 @Composable fun AppIcon(symbol: AppSymbol, description: String? = null, modifier: Modifier = Modifier, tint: Color = LocalContentColor.current) {
     val vector = remember(symbol) {
