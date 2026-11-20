@@ -35,4 +35,5 @@ data class Reading(
     val latencyMs: Double? = null,
     val jitterMs: Double? = null,
     val speedTestStatus: SpeedTestStatus? = null,
+    val wifiConnectedAgeMillis: Long? = null,
 )

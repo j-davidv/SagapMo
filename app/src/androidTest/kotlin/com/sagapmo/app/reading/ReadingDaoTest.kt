@@ -17,7 +17,7 @@ class ReadingDaoTest {
     private lateinit var database: ReadingDatabase
     private val dao get() = database.readings()
     private fun open() = Room.databaseBuilder(context, ReadingDatabase::class.java, "readings-test.db")
-        .addMigrations(ReadingDatabase.MIGRATION_1_2, ReadingDatabase.MIGRATION_2_3, ReadingDatabase.MIGRATION_3_4)
+        .addMigrations(ReadingDatabase.MIGRATION_1_2, ReadingDatabase.MIGRATION_2_3, ReadingDatabase.MIGRATION_3_4, ReadingDatabase.MIGRATION_4_5)
         .build()
     @Before fun setUp() { context.deleteDatabase("readings-test.db"); database = open() }
     @After fun tearDown() { database.close(); context.deleteDatabase("readings-test.db") }

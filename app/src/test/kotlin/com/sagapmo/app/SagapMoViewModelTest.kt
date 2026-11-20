@@ -149,9 +149,9 @@ private class FakeSpeedTestEngine : SpeedTestEngine {
         jitterMs = 2.0,
         overallProgress = 1.0f
     )
-    override fun runSpeedTest(): Flow<SpeedTestProgress> = flow {
-        emit(SpeedTestProgress(phase = SpeedTestPhase.LATENCY, latencyMs = 15.0, jitterMs = 2.0, overallProgress = 0.2f))
-        emit(resultProgress)
+    override fun runSpeedTest(connectionAgeMillis: Long?): Flow<SpeedTestProgress> = flow {
+        emit(SpeedTestProgress(phase = SpeedTestPhase.LATENCY, latencyMs = 15.0, jitterMs = 2.0, connectionAgeMillisAtStart = connectionAgeMillis, overallProgress = 0.2f))
+        emit(resultProgress.copy(connectionAgeMillisAtStart = connectionAgeMillis))
     }
 }
 

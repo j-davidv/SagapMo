@@ -20,10 +20,23 @@ interface SignalReader {
 class AndroidSignalReader(context: Context) : SignalReader {
     private val connectivity = context.getSystemService(ConnectivityManager::class.java)
     private val telephony = context.getSystemService(TelephonyManager::class.java)
+    private var lastNetworkHandle: Long? = null
+    private var networkConnectedElapsedMillis: Long? = null
 
     override fun currentConnection(): ConnectionResult = try {
         val network = connectivity.activeNetwork
         val caps = network?.let { connectivity.getNetworkCapabilities(it) }
+        val now = SystemClock.elapsedRealtime()
+        val handle = network?.networkHandle
+        if (handle != null && handle != lastNetworkHandle) {
+            lastNetworkHandle = handle
+            networkConnectedElapsedMillis = now
+        } else if (handle == null) {
+            lastNetworkHandle = null
+            networkConnectedElapsedMillis = null
+        }
+        val connAge = networkConnectedElapsedMillis?.let { now - it }
+
         when {
             caps == null -> ConnectionResult.Failed(CaptureError.NO_CONNECTION)
             caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) -> ConnectionResult.Failed(CaptureError.VPN_ACTIVE)
@@ -31,11 +44,11 @@ class AndroidSignalReader(context: Context) : SignalReader {
             caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ->
                 ConnectionResult.Failed(CaptureError.UNSUPPORTED_CONNECTION)
             caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ->
-                ConnectionResult.Available(ConnectionSnapshot(network.networkHandle, ConnectionType.WIFI, null))
+                ConnectionResult.Available(ConnectionSnapshot(network.networkHandle, ConnectionType.WIFI, null), connAge)
             else -> {
                 val subscription = SubscriptionManager.getActiveDataSubscriptionId()
                 if (!SubscriptionManager.isValidSubscriptionId(subscription)) ConnectionResult.Failed(CaptureError.SIGNAL_UNAVAILABLE)
-                else ConnectionResult.Available(ConnectionSnapshot(network.networkHandle, ConnectionType.MOBILE, subscription))
+                else ConnectionResult.Available(ConnectionSnapshot(network.networkHandle, ConnectionType.MOBILE, subscription), connAge)
             }
         }
     } catch (_: SecurityException) {
@@ -46,8 +59,8 @@ class AndroidSignalReader(context: Context) : SignalReader {
 
     @SuppressLint("MissingPermission")
     override suspend fun read(): SignalResult = withContext(Dispatchers.IO) {
-        val before = when (val result = currentConnection()) {
-            is ConnectionResult.Available -> result.snapshot
+        val (before, connAge) = when (val result = currentConnection()) {
+            is ConnectionResult.Available -> Pair(result.snapshot, result.connectionAgeMillis)
             is ConnectionResult.Failed -> return@withContext SignalResult.Failed(result.error)
         }
         try {
@@ -80,7 +93,7 @@ class AndroidSignalReader(context: Context) : SignalReader {
                 }
                 SignalResult.Failed(error)
             } else SignalResult.Available(SignalSample(before.connectionType, raw, unit, rating,
-                measured?.let { now - it }, capturedAt, now))
+                measured?.let { now - it }, capturedAt, now, connAge))
         } catch (_: SecurityException) {
             SignalResult.Failed(CaptureError.SIGNAL_PERMISSION_DENIED)
         } catch (_: RuntimeException) {
