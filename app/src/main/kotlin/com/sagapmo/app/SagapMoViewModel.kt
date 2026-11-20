@@ -35,6 +35,7 @@ data class AppUiState(
     val speedTestProgress: SpeedTestProgress? = null,
     val use3dMap: Boolean = false,
     val settingsVisible: Boolean = false,
+    val alwaysCollapseAdvancedInfo: Boolean = true,
 ) {
     val allReadings get() = (readingsState as? ReadingsState.Loaded)?.readings.orEmpty()
     val visibleReadings get() = allReadings.filter { filter == null || it.connectionType == filter }
@@ -49,12 +50,14 @@ class SagapMoViewModel(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     initialUse3dMap: Boolean = false,
     initialIncludeSpeedTest: Boolean = true,
+    initialAlwaysCollapseAdvancedInfo: Boolean = true,
     private val onSavePreference: ((key: String, value: Boolean) -> Unit)? = null,
 ) : ViewModel() {
     private val state = MutableStateFlow(
         AppUiState(
             use3dMap = initialUse3dMap,
             includeSpeedTest = initialIncludeSpeedTest,
+            alwaysCollapseAdvancedInfo = initialAlwaysCollapseAdvancedInfo,
         )
     )
     val uiState = state.asStateFlow()
@@ -89,6 +92,11 @@ class SagapMoViewModel(
     fun setIncludeSpeedTest(include: Boolean) {
         state.update { it.copy(includeSpeedTest = include) }
         onSavePreference?.invoke("include_speed_test", include)
+    }
+
+    fun setAlwaysCollapseAdvancedInfo(alwaysCollapse: Boolean) {
+        state.update { it.copy(alwaysCollapseAdvancedInfo = alwaysCollapse) }
+        onSavePreference?.invoke("always_collapse_advanced_info", alwaysCollapse)
     }
 
     fun openSettings() {
