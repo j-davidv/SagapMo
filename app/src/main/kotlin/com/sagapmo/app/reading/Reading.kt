@@ -4,6 +4,8 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.ColumnInfo
 
+import com.sagapmo.app.speedtest.SpeedTestStatus
+
 enum class ConnectionType { WIFI, MOBILE }
 enum class SignalUnit { DBM, ANDROID_LEVEL }
 enum class Rating { GOOD, FAIR, POOR }
@@ -28,4 +30,9 @@ data class Reading(
     val noLocationReason: NoLocationReason?,
     @ColumnInfo(defaultValue = "0") val locationManuallySet: Boolean = false,
     @ColumnInfo(defaultValue = "''") val locationDescription: String = "",
+    val downloadMbps: Double? = null,
+    val uploadMbps: Double? = null,
+    val latencyMs: Double? = null,
+    val jitterMs: Double? = null,
+    val speedTestStatus: SpeedTestStatus? = null,
 )

@@ -8,7 +8,9 @@ import java.util.UUID
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
-enum class CapturePhase { IDLE, AWAITING_PERMISSION, LOCATING, ACQUIRING_SIGNAL, SAVING, SAVE_FAILED, SAVED, FAILED, INTERRUPTED }
+import com.sagapmo.app.speedtest.*
+
+enum class CapturePhase { IDLE, AWAITING_PERMISSION, LOCATING, ACQUIRING_SIGNAL, RUNNING_SPEED_TEST, SAVING, SAVE_FAILED, SAVED, FAILED, INTERRUPTED }
 enum class Destination { MAP, READINGS }
 sealed interface ReadingsState {
     data object Loading : ReadingsState
@@ -29,16 +31,19 @@ data class AppUiState(
     val permissionLaunched: Boolean = false,
     val descriptionSavingId: String? = null,
     val descriptionErrorId: String? = null,
+    val includeSpeedTest: Boolean = true,
+    val speedTestProgress: SpeedTestProgress? = null,
 ) {
     val allReadings get() = (readingsState as? ReadingsState.Loaded)?.readings.orEmpty()
     val visibleReadings get() = allReadings.filter { filter == null || it.connectionType == filter }
-    val recording get() = capturePhase in setOf(CapturePhase.AWAITING_PERMISSION, CapturePhase.LOCATING, CapturePhase.ACQUIRING_SIGNAL, CapturePhase.SAVING)
+    val recording get() = capturePhase in setOf(CapturePhase.AWAITING_PERMISSION, CapturePhase.LOCATING, CapturePhase.ACQUIRING_SIGNAL, CapturePhase.RUNNING_SPEED_TEST, CapturePhase.SAVING)
 }
 
 class SagapMoViewModel(
     private val signalReader: SignalReader,
     private val locationReader: LocationReader,
     private val dao: ReadingDao,
+    private val speedTestEngine: SpeedTestEngine = HttpSpeedTestEngine(),
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     private val state = MutableStateFlow(AppUiState())
@@ -50,11 +55,12 @@ class SagapMoViewModel(
 
     init { retryReadings() }
 
-    fun record(needsPermissionPrompt: Boolean) {
+    fun record(needsPermissionPrompt: Boolean, includeSpeedTest: Boolean = state.value.includeSpeedTest) {
         if (state.value.recording || state.value.pendingSave != null) return
         operationId = UUID.randomUUID().toString()
         state.update { it.copy(capturePhase = CapturePhase.ACQUIRING_SIGNAL, captureError = null,
-            savedReading = null, captureVisible = true, permissionLaunched = false, selectedReading = null) }
+            savedReading = null, captureVisible = true, permissionLaunched = false, selectedReading = null,
+            includeSpeedTest = includeSpeedTest, speedTestProgress = null) }
         operationJob = viewModelScope.launch {
             when (val connection = withContext(ioDispatcher) { signalReader.currentConnection() }) {
                 is ConnectionResult.Failed -> fail(connection.error)
@@ -63,6 +69,10 @@ class SagapMoViewModel(
                 } else acquire()
             }
         }
+    }
+
+    fun setIncludeSpeedTest(include: Boolean) {
+        state.update { it.copy(includeSpeedTest = include) }
     }
 
     fun claimPermissionLaunch(): Boolean {
@@ -85,7 +95,33 @@ class SagapMoViewModel(
             is SignalResult.Failed -> fail(signal.error)
             is SignalResult.Available -> {
                 val access = withContext(ioDispatcher) { locationReader.currentAccess() }
-                val candidate = assembleReading(requireNotNull(operationId), signal.sample, location, access)
+                var candidate = assembleReading(requireNotNull(operationId), signal.sample, location, access)
+                if (state.value.includeSpeedTest) {
+                    state.update { it.copy(capturePhase = CapturePhase.RUNNING_SPEED_TEST) }
+                    var lastProgress: SpeedTestProgress? = null
+                    try {
+                        speedTestEngine.runSpeedTest().collect { progress ->
+                            lastProgress = progress
+                            state.update { it.copy(speedTestProgress = progress) }
+                        }
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                    }
+                    val finalProg = lastProgress
+                    if (finalProg != null) {
+                        candidate = candidate.copy(
+                            downloadMbps = finalProg.downloadMbps,
+                            uploadMbps = finalProg.uploadMbps,
+                            latencyMs = finalProg.latencyMs,
+                            jitterMs = finalProg.jitterMs,
+                            speedTestStatus = if (finalProg.phase == SpeedTestPhase.FAILED) SpeedTestStatus.FAILED else SpeedTestStatus.COMPLETED
+                        )
+                    } else {
+                        candidate = candidate.copy(speedTestStatus = SpeedTestStatus.SKIPPED)
+                    }
+                } else {
+                    candidate = candidate.copy(speedTestStatus = SpeedTestStatus.SKIPPED)
+                }
                 state.update { it.copy(pendingSave = candidate, capturePhase = CapturePhase.SAVING) }
                 saveCandidate(candidate)
             }
@@ -127,14 +163,14 @@ class SagapMoViewModel(
     }
 
     fun onAppBackgrounded() {
-        if (state.value.capturePhase in setOf(CapturePhase.LOCATING, CapturePhase.ACQUIRING_SIGNAL)) {
+        if (state.value.capturePhase in setOf(CapturePhase.LOCATING, CapturePhase.ACQUIRING_SIGNAL, CapturePhase.RUNNING_SPEED_TEST)) {
             operationJob?.cancel()
             state.update { it.copy(capturePhase = CapturePhase.INTERRUPTED, captureVisible = true) }
         }
     }
     fun dismissCapture() { state.update { it.copy(captureVisible = false) } }
     fun cancelCapture() {
-        if (state.value.capturePhase in setOf(CapturePhase.AWAITING_PERMISSION, CapturePhase.LOCATING, CapturePhase.ACQUIRING_SIGNAL)) {
+        if (state.value.capturePhase in setOf(CapturePhase.AWAITING_PERMISSION, CapturePhase.LOCATING, CapturePhase.ACQUIRING_SIGNAL, CapturePhase.RUNNING_SPEED_TEST)) {
             operationJob?.cancel()
             state.update { it.copy(capturePhase = CapturePhase.INTERRUPTED, captureVisible = false, permissionLaunched = false) }
         }
