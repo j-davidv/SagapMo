@@ -27,6 +27,7 @@ class MainActivity : ComponentActivity() {
         val prefs = getPreferences(MODE_PRIVATE)
         val use3d = prefs.getBoolean("use_3d_map", false)
         val includeSpeed = prefs.getBoolean("include_speed_test", true)
+        val alwaysCollapse = prefs.getBoolean("always_collapse_advanced_info", true)
         model = ViewModelProvider(this, object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T = SagapMoViewModel(
@@ -34,6 +35,7 @@ class MainActivity : ComponentActivity() {
                 (application as SagapMoApplication).database.readings(),
                 initialUse3dMap = use3d,
                 initialIncludeSpeedTest = includeSpeed,
+                initialAlwaysCollapseAdvancedInfo = alwaysCollapse,
                 onSavePreference = { key, value -> prefs.edit().putBoolean(key, value).apply() }
             ) as T
         })[SagapMoViewModel::class.java]
