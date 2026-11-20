@@ -26,8 +26,11 @@ import org.maplibre.compose.style.BaseStyle
 
 @Composable fun SagapMoApp(viewModel: SagapMoViewModel, onRecord: () -> Unit = { viewModel.record(false) },
     onRequestPermission: () -> Unit = {}, onOpenSettings: () -> Unit = {},
-    baseStyle: BaseStyle = BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty")) {
+    baseStyle: BaseStyle? = null) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val activeBaseStyle = baseStyle ?: remember(state.use3dMap) {
+        if (state.use3dMap) com.sagapmo.app.map.MapStyle3D else com.sagapmo.app.map.DefaultMapStyle2D
+    }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var editingLocation by remember { mutableStateOf<Reading?>(null) }
@@ -43,7 +46,7 @@ import org.maplibre.compose.style.BaseStyle
                 }
                 Scaffold(Modifier.weight(1f), containerColor = MaterialTheme.colorScheme.surface,
                     snackbarHost = { SnackbarHost(snackbar) },
-                    topBar = { AppHeader(onOpenSettings) },
+                    topBar = { AppHeader(viewModel::openSettings) },
                     bottomBar = {
                         Column {
                             if (expanded) RecordPanel(state, onRecord, viewModel::retrySave)
@@ -68,7 +71,7 @@ import org.maplibre.compose.style.BaseStyle
                             CampusMapScreen(state.visibleReadings, state.focusedReadingId, viewModel::openReading,
                                 { viewModel.setDestination(Destination.READINGS) },
                                 bottomOverlayHeight = if (floatingMap) padding.calculateBottomPadding() else 0.dp,
-                                baseStyle = baseStyle,
+                                baseStyle = activeBaseStyle,
                                 emptyTitle = if (state.readingsState is ReadingsState.Loaded && state.visibleReadings.isEmpty())
                                     if (state.allReadings.isEmpty()) "No readings yet" else "No ${state.filter?.label()} readings" else null,
                                 onShowAll = if (state.allReadings.isNotEmpty()) ({ viewModel.setFilter(null) }) else null)
@@ -88,9 +91,18 @@ import org.maplibre.compose.style.BaseStyle
         onSetLocation = { reading -> editingLocation = reading },
         onDescriptionChange = { text -> viewModel.updateLocationDescription(it.id, text) },
         descriptionSaving = state.descriptionSavingId == it.id, descriptionFailed = state.descriptionErrorId == it.id) }
-    editingLocation?.let { reading -> LocationPicker(reading, baseStyle, { editingLocation = null },
+    editingLocation?.let { reading -> LocationPicker(reading, activeBaseStyle, { editingLocation = null },
         onSave = { latitude, longitude -> viewModel.setManualLocation(reading, latitude, longitude) }) }
     if (state.captureVisible && !state.permissionLaunched && state.selectedReading == null) CaptureStatus(state, viewModel, onRecord, onRequestPermission, onOpenSettings)
+    if (state.settingsVisible) {
+        SettingsDialog(
+            state = state,
+            onDismiss = viewModel::dismissSettings,
+            onToggle3dMap = viewModel::setUse3dMap,
+            onToggleSpeedTest = viewModel::setIncludeSpeedTest,
+            onOpenSystemSettings = onOpenSettings,
+        )
+    }
 }
 
 @Composable private fun AppHeader(onOpenSettings: () -> Unit) {
