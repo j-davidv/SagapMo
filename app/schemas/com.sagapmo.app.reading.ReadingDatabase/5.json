@@ -1,0 +1,135 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 5,
+    "identityHash": "cb13512f60435302f7ed415926f7229b",
+    "entities": [
+      {
+        "tableName": "readings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `capturedAtEpochMillis` INTEGER NOT NULL, `connectionType` TEXT NOT NULL, `rawSignalValue` INTEGER NOT NULL, `signalUnit` TEXT NOT NULL, `rating` TEXT NOT NULL, `signalAgeMillisAtCapture` INTEGER, `latitude` REAL, `longitude` REAL, `accuracyMetres` REAL, `locationAgeMillisAtCapture` INTEGER, `noLocationReason` TEXT, `locationManuallySet` INTEGER NOT NULL DEFAULT 0, `locationDescription` TEXT NOT NULL DEFAULT '', `downloadMbps` REAL, `uploadMbps` REAL, `latencyMs` REAL, `jitterMs` REAL, `speedTestStatus` TEXT, `wifiConnectedAgeMillis` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "capturedAtEpochMillis",
+            "columnName": "capturedAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "connectionType",
+            "columnName": "connectionType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawSignalValue",
+            "columnName": "rawSignalValue",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "signalUnit",
+            "columnName": "signalUnit",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rating",
+            "columnName": "rating",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "signalAgeMillisAtCapture",
+            "columnName": "signalAgeMillisAtCapture",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "latitude",
+            "columnName": "latitude",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "longitude",
+            "columnName": "longitude",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "accuracyMetres",
+            "columnName": "accuracyMetres",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "locationAgeMillisAtCapture",
+            "columnName": "locationAgeMillisAtCapture",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "noLocationReason",
+            "columnName": "noLocationReason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "locationManuallySet",
+            "columnName": "locationManuallySet",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "locationDescription",
+            "columnName": "locationDescription",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "downloadMbps",
+            "columnName": "downloadMbps",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "uploadMbps",
+            "columnName": "uploadMbps",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "latencyMs",
+            "columnName": "latencyMs",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "jitterMs",
+            "columnName": "jitterMs",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "speedTestStatus",
+            "columnName": "speedTestStatus",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "wifiConnectedAgeMillis",
+            "columnName": "wifiConnectedAgeMillis",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cb13512f60435302f7ed415926f7229b')"
+    ]
+  }
+}
