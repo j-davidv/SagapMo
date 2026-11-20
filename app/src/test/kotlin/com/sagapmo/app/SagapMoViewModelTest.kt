@@ -164,6 +164,23 @@ class SagapMoViewModelTest {
         model.dismissSettings()
         assertFalse(model.uiState.value.settingsVisible)
     }
+
+    @Test fun settingsToggleAlwaysCollapseAdvancedUpdatesStateAndPersists() = runTest(dispatcher) {
+        val savedPrefs = mutableMapOf<String, Boolean>()
+        val customModel = SagapMoViewModel(
+            signal, location, dao, speedTest, dispatcher,
+            initialAlwaysCollapseAdvancedInfo = true,
+            onSavePreference = { key, value -> savedPrefs[key] = value }
+        )
+        assertTrue(customModel.uiState.value.alwaysCollapseAdvancedInfo)
+        customModel.setAlwaysCollapseAdvancedInfo(false)
+        assertFalse(customModel.uiState.value.alwaysCollapseAdvancedInfo)
+        assertEquals(false, savedPrefs["always_collapse_advanced_info"])
+
+        customModel.setAlwaysCollapseAdvancedInfo(true)
+        assertTrue(customModel.uiState.value.alwaysCollapseAdvancedInfo)
+        assertEquals(true, savedPrefs["always_collapse_advanced_info"])
+    }
 }
 
 private class FakeSpeedTestEngine : SpeedTestEngine {
