@@ -5,6 +5,13 @@ import java.net.URI
 import kotlin.time.Instant
 import kotlinx.coroutines.*
 import org.maplibre.compose.resource.*
+import org.maplibre.compose.style.BaseStyle
+
+const val MAP_STYLE_2D_URL = "https://tiles.openfreemap.org/styles/bright"
+const val MAP_STYLE_3D_URL = "https://tiles.openfreemap.org/styles/liberty"
+
+val DefaultMapStyle2D: BaseStyle = BaseStyle.Uri(MAP_STYLE_2D_URL)
+val MapStyle3D: BaseStyle = BaseStyle.Uri(MAP_STYLE_3D_URL)
 
 internal class ObservedMapResources(private val delegate: MapResourceProvider,
     private val onResult: (String, Boolean) -> Unit) : MapResourceProvider {
