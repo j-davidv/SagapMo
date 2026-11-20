@@ -138,6 +138,32 @@ class SagapMoViewModelTest {
         assertNull(saved.jitterMs)
         assertEquals(SpeedTestStatus.SKIPPED, saved.speedTestStatus)
     }
+
+    @Test fun settingsToggleUse3dMapUpdatesStateAndPersists() = runTest(dispatcher) {
+        val savedPrefs = mutableMapOf<String, Boolean>()
+        val customModel = SagapMoViewModel(
+            signal, location, dao, speedTest, dispatcher,
+            initialUse3dMap = false,
+            initialIncludeSpeedTest = true,
+            onSavePreference = { key, value -> savedPrefs[key] = value }
+        )
+        assertFalse(customModel.uiState.value.use3dMap)
+        customModel.setUse3dMap(true)
+        assertTrue(customModel.uiState.value.use3dMap)
+        assertEquals(true, savedPrefs["use_3d_map"])
+
+        customModel.setUse3dMap(false)
+        assertFalse(customModel.uiState.value.use3dMap)
+        assertEquals(false, savedPrefs["use_3d_map"])
+    }
+
+    @Test fun settingsVisibilityTogglesCorrectly() = runTest(dispatcher) {
+        assertFalse(model.uiState.value.settingsVisible)
+        model.openSettings()
+        assertTrue(model.uiState.value.settingsVisible)
+        model.dismissSettings()
+        assertFalse(model.uiState.value.settingsVisible)
+    }
 }
 
 private class FakeSpeedTestEngine : SpeedTestEngine {
