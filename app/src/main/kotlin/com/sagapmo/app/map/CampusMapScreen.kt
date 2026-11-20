@@ -28,7 +28,7 @@ private val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421)
 @Composable internal fun CampusMapScreen(readings: List<Reading>, focusedReadingId: String?,
     onOpenReading: (Reading) -> Unit, onViewReadings: () -> Unit,
     runtime: MapRuntime? = null,
-    baseStyle: BaseStyle = BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty"),
+    baseStyle: BaseStyle = DefaultMapStyle2D,
     emptyTitle: String? = null, onShowAll: (() -> Unit)? = null, resourceProvider: MapResourceProvider? = null,
     topOverlayHeight: Dp = 0.dp, bottomOverlayHeight: Dp = 0.dp) {
     var attempt by remember { mutableIntStateOf(1) }
