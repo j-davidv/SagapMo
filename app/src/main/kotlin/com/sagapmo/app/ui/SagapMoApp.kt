@@ -90,7 +90,8 @@ import org.maplibre.compose.style.BaseStyle
     if (editingLocation == null) state.selectedReading?.let { ReadingDetails(it, viewModel::closeDetails, viewModel::showOnMap, onOpenSettings,
         onSetLocation = { reading -> editingLocation = reading },
         onDescriptionChange = { text -> viewModel.updateLocationDescription(it.id, text) },
-        descriptionSaving = state.descriptionSavingId == it.id, descriptionFailed = state.descriptionErrorId == it.id) }
+        descriptionSaving = state.descriptionSavingId == it.id, descriptionFailed = state.descriptionErrorId == it.id,
+        alwaysCollapseAdvanced = state.alwaysCollapseAdvancedInfo) }
     editingLocation?.let { reading -> LocationPicker(reading, activeBaseStyle, { editingLocation = null },
         onSave = { latitude, longitude -> viewModel.setManualLocation(reading, latitude, longitude) }) }
     if (state.captureVisible && !state.permissionLaunched && state.selectedReading == null) CaptureStatus(state, viewModel, onRecord, onRequestPermission, onOpenSettings)
@@ -100,6 +101,7 @@ import org.maplibre.compose.style.BaseStyle
             onDismiss = viewModel::dismissSettings,
             onToggle3dMap = viewModel::setUse3dMap,
             onToggleSpeedTest = viewModel::setIncludeSpeedTest,
+            onToggleAlwaysCollapseAdvanced = viewModel::setAlwaysCollapseAdvancedInfo,
             onOpenSystemSettings = onOpenSettings,
         )
     }
