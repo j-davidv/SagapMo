@@ -24,11 +24,18 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val prefs = getPreferences(MODE_PRIVATE)
+        val use3d = prefs.getBoolean("use_3d_map", false)
+        val includeSpeed = prefs.getBoolean("include_speed_test", true)
         model = ViewModelProvider(this, object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T = SagapMoViewModel(
                 AndroidSignalReader(applicationContext), AndroidLocationReader(applicationContext),
-                (application as SagapMoApplication).database.readings()) as T
+                (application as SagapMoApplication).database.readings(),
+                initialUse3dMap = use3d,
+                initialIncludeSpeedTest = includeSpeed,
+                onSavePreference = { key, value -> prefs.edit().putBoolean(key, value).apply() }
+            ) as T
         })[SagapMoViewModel::class.java]
         setContent {
             SagapMoTheme { SagapMoApp(model, ::record, ::requestLocation, ::openAppSettings) }
