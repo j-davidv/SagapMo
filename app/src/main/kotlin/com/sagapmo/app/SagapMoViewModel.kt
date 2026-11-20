@@ -33,6 +33,8 @@ data class AppUiState(
     val descriptionErrorId: String? = null,
     val includeSpeedTest: Boolean = true,
     val speedTestProgress: SpeedTestProgress? = null,
+    val use3dMap: Boolean = false,
+    val settingsVisible: Boolean = false,
 ) {
     val allReadings get() = (readingsState as? ReadingsState.Loaded)?.readings.orEmpty()
     val visibleReadings get() = allReadings.filter { filter == null || it.connectionType == filter }
@@ -45,8 +47,16 @@ class SagapMoViewModel(
     private val dao: ReadingDao,
     private val speedTestEngine: SpeedTestEngine = HttpSpeedTestEngine(),
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    initialUse3dMap: Boolean = false,
+    initialIncludeSpeedTest: Boolean = true,
+    private val onSavePreference: ((key: String, value: Boolean) -> Unit)? = null,
 ) : ViewModel() {
-    private val state = MutableStateFlow(AppUiState())
+    private val state = MutableStateFlow(
+        AppUiState(
+            use3dMap = initialUse3dMap,
+            includeSpeedTest = initialIncludeSpeedTest,
+        )
+    )
     val uiState = state.asStateFlow()
     private var operationId: String? = null
     private var operationJob: Job? = null
@@ -71,8 +81,22 @@ class SagapMoViewModel(
         }
     }
 
+    fun setUse3dMap(enabled: Boolean) {
+        state.update { it.copy(use3dMap = enabled) }
+        onSavePreference?.invoke("use_3d_map", enabled)
+    }
+
     fun setIncludeSpeedTest(include: Boolean) {
         state.update { it.copy(includeSpeedTest = include) }
+        onSavePreference?.invoke("include_speed_test", include)
+    }
+
+    fun openSettings() {
+        state.update { it.copy(settingsVisible = true) }
+    }
+
+    fun dismissSettings() {
+        state.update { it.copy(settingsVisible = false) }
     }
 
     fun claimPermissionLaunch(): Boolean {
