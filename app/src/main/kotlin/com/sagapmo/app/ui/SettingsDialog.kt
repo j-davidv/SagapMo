@@ -22,6 +22,7 @@ internal fun SettingsDialog(
     onDismiss: () -> Unit,
     onToggle3dMap: (Boolean) -> Unit,
     onToggleSpeedTest: (Boolean) -> Unit,
+    onToggleAlwaysCollapseAdvanced: (Boolean) -> Unit,
     onOpenSystemSettings: () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss) {
@@ -162,6 +163,48 @@ internal fun SettingsDialog(
                             Switch(
                                 checked = state.includeSpeedTest,
                                 onCheckedChange = onToggleSpeedTest
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Reading Details",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.Switch) { onToggleAlwaysCollapseAdvanced(!state.alwaysCollapseAdvancedInfo) }
+                            .testTag("setting-always-collapse-advanced")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                                Text(
+                                    "Always collapse Advanced Information",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    "When opening Reading details, keep latency, jitter, coordinates, and accuracy collapsed.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = state.alwaysCollapseAdvancedInfo,
+                                onCheckedChange = onToggleAlwaysCollapseAdvanced
                             )
                         }
                     }
