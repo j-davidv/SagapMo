@@ -10,7 +10,6 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.ui.text.style.TextAlign
 import com.sagapmo.app.*
 import com.sagapmo.app.capture.CaptureError
 import com.sagapmo.app.reading.*
@@ -101,7 +100,7 @@ fun CaptureError.explanation() = when (this) {
                             Text("${reading.rawDisplay()} · ${reading.shortTime().substringAfter(" · ")}")
                         }
                     }
-                    if (reading.speedTestStatus == SpeedTestStatus.FAILED || reading.downloadMbps != null || reading.uploadMbps != null) {
+                    if (reading.downloadMbps != null) {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant,
@@ -110,17 +109,8 @@ fun CaptureError.explanation() = when (this) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("Speed Test Results", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(
-                                        "Download: ${reading.downloadMbps?.let { String.format(Locale.US, "%.1f Mbps", it) } ?: "Unavailable"}",
-                                        modifier = Modifier.weight(1f),
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                    Text(
-                                        "Upload: ${reading.uploadMbps?.let { String.format(Locale.US, "%.1f Mbps", it) } ?: "Unavailable"}",
-                                        modifier = Modifier.weight(1f),
-                                        textAlign = TextAlign.End,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
+                                    Text("Download: ${String.format(Locale.US, "%.1f Mbps", reading.downloadMbps)}", style = MaterialTheme.typography.bodyMedium)
+                                    Text("Upload: ${String.format(Locale.US, "%.1f Mbps", reading.uploadMbps ?: 0.0)}", style = MaterialTheme.typography.bodyMedium)
                                 }
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text("Latency: ${reading.latencyMs?.let { String.format(Locale.US, "%.0f ms", it) } ?: "--"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
