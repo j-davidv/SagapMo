@@ -18,21 +18,50 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 
 class SagapMoAppTest {
+    @Test fun locationProgressAndOutcomeStayClearThroughSpeedTest() {
+        val locationGate = CompletableDeferred<Unit>()
+        val speedGate = CompletableDeferred<Unit>()
+        val engine = object : SpeedTestEngine {
+            override fun runSpeedTest(connectionAgeMillis: Long?, connectionType: ConnectionType) = flow {
+                emit(SpeedTestProgress(phase = SpeedTestPhase.UPLOAD))
+                speedGate.await()
+                emit(SpeedTestProgress(phase = SpeedTestPhase.COMPLETED, downloadMbps = 24.0, uploadMbps = 12.5))
+            }
+        }
+        start(speedTest = engine, locationGate = locationGate)
+        compose.onNodeWithContentDescription("Record reading").performClick()
+        compose.waitUntil(5000) { model.uiState.value.capturePhase == CapturePhase.LOCATING }
+        compose.onNodeWithText("Getting location").assertIsDisplayed()
+        compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.ProgressBarRangeInfo, ProgressBarRangeInfo.Indeterminate))
+            .assertIsDisplayed()
+        locationGate.complete(Unit)
+        compose.waitUntil(5000) { model.uiState.value.speedTestProgress?.phase == SpeedTestPhase.UPLOAD }
+        compose.onNodeWithText("No map pin for this reading").assertIsDisplayed()
+        compose.onNodeWithText("Testing upload speed…").assertIsDisplayed()
+        speedGate.complete(Unit)
+        compose.waitUntil(5000) { model.uiState.value.capturePhase == CapturePhase.SAVED }
+        compose.onNodeWithText("Speed test completed").performScrollTo().assertIsDisplayed()
+    }
+
     @Test fun partialSpeedTestShowsUnavailableDownloadAndMeasuredUpload() {
         val engine = object : SpeedTestEngine {
-            override fun runSpeedTest(connectionAgeMillis: Long?) =
-                flowOf(SpeedTestProgress(phase = SpeedTestPhase.FAILED, uploadMbps = 12.5, overallProgress = 1f))
+            override fun runSpeedTest(connectionAgeMillis: Long?, connectionType: ConnectionType) =
+                flowOf(SpeedTestProgress(phase = SpeedTestPhase.FAILED, uploadMbps = 12.5, overallProgress = 1f, downloadRateLimited = true))
         }
         start(speedTest = engine)
         compose.runOnIdle { model.setIncludeSpeedTest(true) }
         compose.onNodeWithContentDescription("Record reading").performClick()
         compose.waitUntil(5000) { model.uiState.value.capturePhase == CapturePhase.SAVED }
+        compose.onNodeWithText("Speed test partially completed").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Download: Unavailable").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Upload: 12.5 Mbps").assertIsDisplayed()
+        compose.onNodeWithText("The test server limited download requests. Try again later for a full download test.").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Show saved reading").performScrollTo().performClick()
         compose.onNodeWithText("Download speed unavailable").performScrollTo().assertIsDisplayed()
     }
@@ -230,12 +259,16 @@ class SagapMoAppTest {
         rows: List<Reading> = emptyList(),
         baseStyle: BaseStyle = BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty"),
         speedTest: SpeedTestEngine = HttpSpeedTestEngine(),
+        locationGate: CompletableDeferred<Unit>? = null,
     ) {
         dao.rows.value = rows
         compose.runOnUiThread {
             model = SagapMoViewModel(signal, object : LocationReader {
                 override fun currentAccess() = LocationAccess(true, true, true)
-                override suspend fun locate(): LocationResult = location
+                override suspend fun locate(): LocationResult {
+                    locationGate?.await()
+                    return location
+                }
             }, dao, speedTest)
             model.setDestination(Destination.READINGS)
         }

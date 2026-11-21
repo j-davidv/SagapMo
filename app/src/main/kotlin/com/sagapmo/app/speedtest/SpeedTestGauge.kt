@@ -1,6 +1,6 @@
 package com.sagapmo.app.speedtest
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
@@ -9,7 +9,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -17,6 +18,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -31,12 +35,11 @@ fun SpeedTestGauge(
     modifier: Modifier = Modifier
 ) {
     val phase = progress?.phase ?: SpeedTestPhase.IDLE
-    val targetProgress = progress?.overallProgress ?: 0f
-    val animatedProgress by animateFloatAsState(
-        targetValue = targetProgress.coerceIn(0f, 1f),
-        animationSpec = tween(durationMillis = 300),
-        label = "speed_progress"
-    )
+    val targetProgress = progress?.phaseProgress ?: 0f
+    val animatedProgress = remember(phase) { Animatable(0f) }
+    LaunchedEffect(animatedProgress, targetProgress) {
+        animatedProgress.animateTo(targetProgress, tween(durationMillis = 300))
+    }
 
     val currentSpeedMbps = progress?.currentRateMbps
         ?: when (phase) {
@@ -86,7 +89,7 @@ fun SpeedTestGauge(
                     style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                 )
 
-                val currentSweep = totalSweep * animatedProgress
+                val currentSweep = totalSweep * animatedProgress.value
                 if (currentSweep > 0f) {
                     drawArc(
                         color = primaryColor,
@@ -138,11 +141,13 @@ fun SpeedTestGauge(
                         color = onSurface
                     )
                     Text(
-                        text = "Mbps",
+                        text = if (phase == SpeedTestPhase.UPLOAD) "Mbps est." else "Mbps",
                         fontSize = 12.sp,
                         color = onSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
+                } else if (phase == SpeedTestPhase.UPLOAD || phase == SpeedTestPhase.STABILIZING) {
+                    Text(if (phase == SpeedTestPhase.STABILIZING) "Waiting…" else "Measuring…", style = MaterialTheme.typography.bodyMedium, color = onSurfaceVariant)
                 } else {
                     Text(
                         text = "--",
@@ -162,6 +167,7 @@ fun SpeedTestGauge(
 
         val phaseLabel = when (phase) {
             SpeedTestPhase.IDLE -> "Preparing speed test…"
+            SpeedTestPhase.STABILIZING -> "Letting the connection settle…"
             SpeedTestPhase.LATENCY -> "Measuring latency & jitter…"
             SpeedTestPhase.DOWNLOAD -> "Testing download speed…"
             SpeedTestPhase.UPLOAD -> "Testing upload speed…"
@@ -170,6 +176,7 @@ fun SpeedTestGauge(
         }
         Text(
             text = phaseLabel,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = onSurface,

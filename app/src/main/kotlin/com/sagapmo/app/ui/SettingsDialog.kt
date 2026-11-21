@@ -155,7 +155,7 @@ internal fun SettingsDialog(
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
-                                    "Measures download, upload, latency, and jitter (capped at 15 MB).",
+                                    "Up to 10 seconds on Wi-Fi or 5 seconds on mobile data per phase. Each phase uses up to 150 MB.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

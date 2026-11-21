@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.*
 
 import com.sagapmo.app.speedtest.*
 
-enum class CapturePhase { IDLE, AWAITING_PERMISSION, LOCATING, ACQUIRING_SIGNAL, RUNNING_SPEED_TEST, SAVING, SAVE_FAILED, SAVED, FAILED, INTERRUPTED }
+enum class CapturePhase { IDLE, CHECKING_CONNECTION, AWAITING_PERMISSION, LOCATING, ACQUIRING_SIGNAL, RUNNING_SPEED_TEST, SAVING, SAVE_FAILED, SAVED, FAILED, INTERRUPTED }
 enum class Destination { MAP, READINGS }
 sealed interface ReadingsState {
     data object Loading : ReadingsState
@@ -33,13 +33,14 @@ data class AppUiState(
     val descriptionErrorId: String? = null,
     val includeSpeedTest: Boolean = true,
     val speedTestProgress: SpeedTestProgress? = null,
+    val captureHasPin: Boolean = false,
     val use3dMap: Boolean = false,
     val settingsVisible: Boolean = false,
     val alwaysCollapseAdvancedInfo: Boolean = true,
 ) {
     val allReadings get() = (readingsState as? ReadingsState.Loaded)?.readings.orEmpty()
     val visibleReadings get() = allReadings.filter { filter == null || it.connectionType == filter }
-    val recording get() = capturePhase in setOf(CapturePhase.AWAITING_PERMISSION, CapturePhase.LOCATING, CapturePhase.ACQUIRING_SIGNAL, CapturePhase.RUNNING_SPEED_TEST, CapturePhase.SAVING)
+    val recording get() = capturePhase in setOf(CapturePhase.CHECKING_CONNECTION, CapturePhase.AWAITING_PERMISSION, CapturePhase.LOCATING, CapturePhase.ACQUIRING_SIGNAL, CapturePhase.RUNNING_SPEED_TEST, CapturePhase.SAVING)
 }
 
 class SagapMoViewModel(
@@ -71,7 +72,7 @@ class SagapMoViewModel(
     fun record(needsPermissionPrompt: Boolean, includeSpeedTest: Boolean = state.value.includeSpeedTest) {
         if (state.value.recording || state.value.pendingSave != null) return
         operationId = UUID.randomUUID().toString()
-        state.update { it.copy(capturePhase = CapturePhase.ACQUIRING_SIGNAL, captureError = null,
+        state.update { it.copy(capturePhase = CapturePhase.CHECKING_CONNECTION, captureError = null,
             savedReading = null, captureVisible = true, permissionLaunched = false, selectedReading = null,
             includeSpeedTest = includeSpeedTest, speedTestProgress = null) }
         operationJob = viewModelScope.launch {
@@ -130,10 +131,10 @@ class SagapMoViewModel(
                 var candidate = assembleReading(requireNotNull(operationId), signal.sample, location, access)
                     .copy(wifiConnectedAgeMillis = signal.sample.connectionAgeMillis)
                 if (state.value.includeSpeedTest) {
-                    state.update { it.copy(capturePhase = CapturePhase.RUNNING_SPEED_TEST) }
+                    state.update { it.copy(capturePhase = CapturePhase.RUNNING_SPEED_TEST, captureHasPin = candidate.latitude != null) }
                     var lastProgress: SpeedTestProgress? = null
                     try {
-                        speedTestEngine.runSpeedTest(signal.sample.connectionAgeMillis).collect { progress ->
+                        speedTestEngine.runSpeedTest(signal.sample.connectionAgeMillis, signal.sample.connectionType).collect { progress ->
                             lastProgress = progress
                             state.update { it.copy(speedTestProgress = progress) }
                         }
@@ -196,14 +197,16 @@ class SagapMoViewModel(
     }
 
     fun onAppBackgrounded() {
-        if (state.value.capturePhase in setOf(CapturePhase.LOCATING, CapturePhase.ACQUIRING_SIGNAL, CapturePhase.RUNNING_SPEED_TEST)) {
+        val current = state.value
+        if (current.recording && current.capturePhase !in setOf(CapturePhase.AWAITING_PERMISSION, CapturePhase.SAVING)) {
             operationJob?.cancel()
             state.update { it.copy(capturePhase = CapturePhase.INTERRUPTED, captureVisible = true) }
         }
     }
     fun dismissCapture() { state.update { it.copy(captureVisible = false) } }
     fun cancelCapture() {
-        if (state.value.capturePhase in setOf(CapturePhase.AWAITING_PERMISSION, CapturePhase.LOCATING, CapturePhase.ACQUIRING_SIGNAL, CapturePhase.RUNNING_SPEED_TEST)) {
+        val current = state.value
+        if (current.recording && current.capturePhase != CapturePhase.SAVING) {
             operationJob?.cancel()
             state.update { it.copy(capturePhase = CapturePhase.INTERRUPTED, captureVisible = false, permissionLaunched = false) }
         }

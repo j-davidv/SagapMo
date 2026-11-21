@@ -9,7 +9,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.text.style.TextAlign
 import com.sagapmo.app.*
 import com.sagapmo.app.capture.CaptureError
@@ -38,6 +37,7 @@ fun CaptureError.explanation() = when (this) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp, 0.dp, 24.dp, 26.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             val title = when (phase) {
                 CapturePhase.AWAITING_PERMISSION -> "Add a pin to your reading"
+                CapturePhase.CHECKING_CONNECTION -> "Checking connection"
                 CapturePhase.LOCATING -> "Getting location"
                 CapturePhase.ACQUIRING_SIGNAL -> "Reading signal"
                 CapturePhase.RUNNING_SPEED_TEST -> "Measuring internet speed"
@@ -65,30 +65,19 @@ fun CaptureError.explanation() = when (this) {
                     PrimaryAction("Continue to location", onRequestPermission)
                     TextButton(model::onPermissionResult, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Save without a pin") }
                 }
-                CapturePhase.LOCATING, CapturePhase.ACQUIRING_SIGNAL, CapturePhase.SAVING -> {
-                    Text(if (phase == CapturePhase.SAVING) "Your signal is ready. Wait for confirmation before leaving the app."
-                        else "Stay at your sampling spot until recording finishes. Location can take up to 10 seconds.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    val step = if (phase == CapturePhase.SAVING) 2 else if (phase == CapturePhase.ACQUIRING_SIGNAL) 1 else 0
-                    LinearProgressIndicator(progress = { (step + 1) / 3f }, modifier = Modifier.fillMaxWidth().height(4.dp), trackColor = MaterialTheme.colorScheme.outlineVariant)
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        listOf("Get an outdoor location", "Read the active connection", "Save one reading").forEachIndexed { index, label ->
-                            Row(Modifier.heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Surface(shape = RoundedCornerShape(16.dp), color = if (index == step) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                                    contentColor = if (index <= step) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    border = BorderStroke(1.dp, if (index == step) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)) {
-                                    Box(Modifier.sizeIn(minWidth = 32.dp, minHeight = 32.dp).padding(4.dp), contentAlignment = Alignment.Center) {
-                                        if (index < step) AppIcon(AppSymbol.CHECK, modifier = Modifier.size(16.dp)) else Text("${index + 1}", style = MaterialTheme.typography.bodySmall)
-                                    }
-                                }
-                                Text(label, color = if (index == step) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
+                CapturePhase.CHECKING_CONNECTION, CapturePhase.LOCATING, CapturePhase.ACQUIRING_SIGNAL, CapturePhase.SAVING -> {
+                    if (phase == CapturePhase.LOCATING) {
+                        Text("Stay at your sampling spot. Getting a location can take up to 10 seconds.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text("$title…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), trackColor = MaterialTheme.colorScheme.outlineVariant)
                     TextButton(model::dismissCapture, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Keep browsing") }
                     if (phase != CapturePhase.SAVING) TextButton(model::cancelCapture, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Cancel recording") }
                 }
                 CapturePhase.RUNNING_SPEED_TEST -> {
+                    Text(
+                        if (state.captureHasPin) "Map pin ready" else "No map pin for this reading",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     SpeedTestGauge(state.speedTestProgress)
                     TextButton(model::dismissCapture, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Keep browsing") }
                     TextButton(model::cancelCapture, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Cancel recording") }
@@ -108,7 +97,12 @@ fun CaptureError.explanation() = when (this) {
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Speed Test Results", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                val speedTestLabel = when {
+                                    reading.speedTestStatus == SpeedTestStatus.COMPLETED -> "Speed test completed"
+                                    reading.downloadMbps != null || reading.uploadMbps != null || reading.latencyMs != null -> "Speed test partially completed"
+                                    else -> "Speed test unavailable"
+                                }
+                                Text(speedTestLabel, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text(
                                         "Download: ${reading.downloadMbps?.let { String.format(Locale.US, "%.1f Mbps", it) } ?: "Unavailable"}",
@@ -125,6 +119,9 @@ fun CaptureError.explanation() = when (this) {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text("Latency: ${reading.latencyMs?.let { String.format(Locale.US, "%.0f ms", it) } ?: "--"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text("Jitter: ${reading.jitterMs?.let { String.format(Locale.US, "%.0f ms", it) } ?: "--"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                if (state.speedTestProgress?.downloadRateLimited == true) {
+                                    Text("The test server limited download requests. Try again later for a full download test.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }

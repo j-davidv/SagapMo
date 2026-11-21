@@ -139,6 +139,15 @@ class SagapMoViewModelTest {
         assertEquals(SpeedTestStatus.SKIPPED, saved.speedTestStatus)
     }
 
+    @Test fun mobileReadingUsesTheMobileSpeedTestWindow() = runTest(dispatcher) {
+        signal.connection = ConnectionResult.Available(ConnectionSnapshot(1, ConnectionType.MOBILE, null))
+        signal.result = SignalResult.Available(SignalSample(ConnectionType.MOBILE, 3, SignalUnit.ANDROID_LEVEL, Rating.GOOD, 0, 5000, 100_000))
+        model.record(false); advanceUntilIdle()
+
+        assertEquals(5_000L, speedTest.connectionType?.speedTestPhaseDurationMillis)
+        assertEquals(10_000L, ConnectionType.WIFI.speedTestPhaseDurationMillis)
+    }
+
     @Test fun recordSavesSignalAndAvailableMetricsAfterPartialSpeedTest() = runTest(dispatcher) {
         speedTest.resultProgress = speedTest.resultProgress.copy(
             phase = SpeedTestPhase.FAILED,
@@ -198,6 +207,7 @@ class SagapMoViewModelTest {
 }
 
 private class FakeSpeedTestEngine : SpeedTestEngine {
+    var connectionType: ConnectionType? = null
     var resultProgress = SpeedTestProgress(
         phase = SpeedTestPhase.COMPLETED,
         downloadMbps = 50.0,
@@ -206,7 +216,8 @@ private class FakeSpeedTestEngine : SpeedTestEngine {
         jitterMs = 2.0,
         overallProgress = 1.0f
     )
-    override fun runSpeedTest(connectionAgeMillis: Long?): Flow<SpeedTestProgress> = flow {
+    override fun runSpeedTest(connectionAgeMillis: Long?, connectionType: ConnectionType): Flow<SpeedTestProgress> = flow {
+        this@FakeSpeedTestEngine.connectionType = connectionType
         emit(SpeedTestProgress(phase = SpeedTestPhase.LATENCY, latencyMs = 15.0, jitterMs = 2.0, connectionAgeMillisAtStart = connectionAgeMillis, overallProgress = 0.2f))
         emit(resultProgress.copy(connectionAgeMillisAtStart = connectionAgeMillis))
     }

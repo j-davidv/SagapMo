@@ -1,12 +1,18 @@
 package com.sagapmo.app.speedtest
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okio.Buffer
+import okio.BufferedSink
+import okio.ForwardingSink
+import okio.buffer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -68,9 +74,24 @@ class HttpSpeedTestEngineTest {
             maxDurationMsPerPhase = 1000L
         )
 
-        val progressList = engine.runSpeedTest(connectionAgeMillis = 5000L).toList()
+        val phaseStarts = mutableMapOf<SpeedTestPhase, Long>()
+        val progressList = engine.runSpeedTest(connectionAgeMillis = 5000L)
+            .onEach { phaseStarts.putIfAbsent(it.phase, testScheduler.currentTime) }
+            .toList()
 
         assertTrue("Should have emitted progress events", progressList.isNotEmpty())
+        assertEquals(SpeedTestPhase.STABILIZING, progressList.first().phase)
+        assertEquals(2_500L, phaseStarts.getValue(SpeedTestPhase.LATENCY))
+        assertTrue(phaseStarts.getValue(SpeedTestPhase.DOWNLOAD) - phaseStarts.getValue(SpeedTestPhase.LATENCY) in 1_000L..1_500L)
+        assertTrue(progressList.any {
+            it.phase == SpeedTestPhase.UPLOAD && it.overallProgress in 0.61f..0.99f
+        })
+        assertTrue(progressList.filter { it.phase == SpeedTestPhase.UPLOAD }.all {
+            it.currentRateMbps == null && it.uploadMbps == null
+        })
+        assertEquals(1f, progressList.last { it.phase == SpeedTestPhase.DOWNLOAD }.phaseProgress, 0.001f)
+        assertEquals(0f, progressList.first { it.phase == SpeedTestPhase.UPLOAD }.phaseProgress, 0.001f)
+        assertTrue(progressList.zipWithNext().all { (previous, next) -> previous.overallProgress <= next.overallProgress })
         val finalProgress = progressList.last()
 
         assertEquals(SpeedTestPhase.COMPLETED, finalProgress.phase)
@@ -90,15 +111,16 @@ class HttpSpeedTestEngineTest {
     }
 
     @Test
-    fun runSpeedTestPreservesUploadAfterDownloadIsRejected() = runTest(testDispatcher) {
+    fun runSpeedTestReportsRateLimitedDownloadAndPreservesUpload() = runTest(testDispatcher) {
         repeat(3) { server.enqueue(MockResponse()) }
-        server.enqueue(MockResponse().setResponseCode(403))
+        server.enqueue(MockResponse().setResponseCode(429))
         server.enqueue(MockResponse())
 
         val result = localEngine().runSpeedTest().toList().last()
 
         assertEquals(SpeedTestPhase.FAILED, result.phase)
         assertNull(result.downloadMbps)
+        assertTrue(result.downloadRateLimited)
         assertTrue(result.uploadMbps!! > 0.0)
     }
 
@@ -113,6 +135,42 @@ class HttpSpeedTestEngineTest {
         assertEquals(SpeedTestPhase.FAILED, result.phase)
         assertTrue(result.downloadMbps!! > 0.0)
         assertNull(result.uploadMbps)
+    }
+
+    @Test
+    fun mobileUploadPreservesSuccessfulBatchesAfterALaterRequestFails() = runTest(testDispatcher) {
+        repeat(3) { server.enqueue(MockResponse()) }
+        server.enqueue(MockResponse().setBody("download"))
+        server.enqueue(MockResponse())
+        server.enqueue(MockResponse().setHeader("cf-meta-upload-bytes", "65536"))
+        server.enqueue(MockResponse().setResponseCode(503))
+        val engine = HttpSpeedTestEngine(
+            pingUrl = server.url("/ping").toString(),
+            downloadUrl = server.url("/down").toString(),
+            uploadUrl = server.url("/up").toString(),
+            ioDispatcher = testDispatcher,
+            maxBytesPerPhase = 131072L
+        )
+
+        val result = engine.runSpeedTest(connectionType = com.sagapmo.app.reading.ConnectionType.MOBILE).toList().last()
+
+        assertTrue("Keep the server-confirmed upload measurement", (result.uploadMbps ?: 0.0) > 0.0)
+        assertTrue((result.downloadMbps ?: 0.0) > 0.0)
+    }
+
+    @Test
+    fun mobileUploadDeclaresItsSizeBeforeSending() = runTest(testDispatcher) {
+        repeat(3) { server.enqueue(MockResponse()) }
+        server.enqueue(MockResponse().setBody("A".repeat(65536)))
+        server.enqueue(MockResponse().setHeader("cf-meta-upload-bytes", "65536"))
+
+        val result = localEngine().runSpeedTest(connectionType = com.sagapmo.app.reading.ConnectionType.MOBILE).toList().last()
+
+        assertNotNull(result.uploadMbps)
+        repeat(4) { server.takeRequest(1, TimeUnit.SECONDS) }
+        val upload = server.takeRequest(1, TimeUnit.SECONDS)
+        assertEquals("65536", upload?.getHeader("Content-Length"))
+        assertNull(upload?.getHeader("Transfer-Encoding"))
     }
 
     @Test
@@ -145,6 +203,66 @@ class HttpSpeedTestEngineTest {
     }
 
     @Test
+    fun downloadKeepsMeasuredBytesWhenALaterRequestFails() = runTest(testDispatcher) {
+        repeat(3) { server.enqueue(MockResponse()) }
+        server.enqueue(MockResponse().setBody("A".repeat(32768)))
+        server.enqueue(MockResponse().setResponseCode(503))
+        server.enqueue(MockResponse().setHeader("cf-meta-upload-bytes", "65536"))
+
+        val result = localEngine().runSpeedTest().toList().last()
+
+        assertEquals(SpeedTestPhase.COMPLETED, result.phase)
+        assertTrue((result.downloadMbps ?: 0.0) > 0.0)
+    }
+
+    @Test
+    fun downloadContinuesAfterTheFirstResponseEnds() = runTest(testDispatcher) {
+        repeat(3) { server.enqueue(MockResponse()) }
+        repeat(2) { server.enqueue(MockResponse().setBody("A".repeat(32768))) }
+        server.enqueue(MockResponse().setHeader("cf-meta-upload-bytes", "65536"))
+
+        val result = localEngine().runSpeedTest().toList().last()
+
+        assertEquals(SpeedTestPhase.COMPLETED, result.phase)
+        repeat(3) { assertEquals("HEAD", server.takeRequest(1, TimeUnit.SECONDS)?.method) }
+        repeat(2) { assertEquals("/down", server.takeRequest(1, TimeUnit.SECONDS)?.path) }
+        assertEquals("/up", server.takeRequest(1, TimeUnit.SECONDS)?.path)
+    }
+
+    @Test
+    fun sustainedUploadShowsAnEstimateBeforeTheFinalResult() = runTest(testDispatcher) {
+        repeat(3) { server.enqueue(MockResponse()) }
+        server.enqueue(MockResponse().setBody("A".repeat(65536)))
+        server.enqueue(MockResponse().setHeader("cf-meta-upload-bytes", "65536"))
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            val request = chain.request()
+            val body = request.body ?: return@addInterceptor chain.proceed(request)
+            val slowBody = object : RequestBody() {
+                override fun contentType() = body.contentType()
+
+                override fun writeTo(sink: BufferedSink) {
+                    val slowSink = object : ForwardingSink(sink) {
+                        override fun write(source: Buffer, byteCount: Long) {
+                            Thread.sleep(180)
+                            super.write(source, byteCount)
+                        }
+                    }.buffer()
+                    body.writeTo(slowSink)
+                    slowSink.emit()
+                }
+            }
+            chain.proceed(request.newBuilder().post(slowBody).build())
+        }.build()
+
+        val progress = localEngine(client).runSpeedTest().toList()
+        val upload = progress.filter { it.phase == SpeedTestPhase.UPLOAD }
+        assertNull(upload.first().currentRateMbps)
+        assertTrue(upload.any { (it.currentRateMbps ?: 0.0) in 0.1..1.0 })
+        assertTrue(upload.all { it.uploadMbps == null })
+        assertNotNull(progress.last().uploadMbps)
+    }
+
+    @Test
     fun runSpeedTestHandlesFailingEndpointsGracefully() = runTest(testDispatcher) {
         val client = OkHttpClient.Builder()
             .connectTimeout(500, TimeUnit.MILLISECONDS)
@@ -168,7 +286,8 @@ class HttpSpeedTestEngineTest {
         assertNull(finalProgress.uploadMbps)
     }
 
-    private fun localEngine() = HttpSpeedTestEngine(
+    private fun localEngine(client: OkHttpClient = OkHttpClient()) = HttpSpeedTestEngine(
+        client = client,
         pingUrl = server.url("/ping").toString(),
         downloadUrl = server.url("/down").toString(),
         uploadUrl = server.url("/up").toString(),

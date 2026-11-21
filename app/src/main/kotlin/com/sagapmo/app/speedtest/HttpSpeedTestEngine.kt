@@ -1,12 +1,14 @@
 package com.sagapmo.app.speedtest
 
+import com.sagapmo.app.reading.ConnectionType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 import okhttp3.MediaType.Companion.toMediaType
@@ -16,6 +18,7 @@ import okhttp3.RequestBody
 import okio.BufferedSink
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import java.util.logging.Logger
 import kotlin.math.abs
 
 class HttpSpeedTestEngine(
@@ -29,18 +32,20 @@ class HttpSpeedTestEngine(
     private val downloadUrl: String = "https://speed.cloudflare.com/__down?bytes=10000000",
     private val uploadUrl: String = "https://speed.cloudflare.com/__up",
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val maxBytesPerPhase: Long = 15L * 1024L * 1024L,
-    private val maxDurationMsPerPhase: Long = 5000L,
+    private val maxBytesPerPhase: Long = 150_000_000L,
+    private val maxDurationMsPerPhase: Long? = null,
 ) : SpeedTestEngine {
 
-    override fun runSpeedTest(connectionAgeMillis: Long?): Flow<SpeedTestProgress> = flow {
+    override fun runSpeedTest(connectionAgeMillis: Long?, connectionType: ConnectionType): Flow<SpeedTestProgress> = channelFlow {
+        val phaseDurationNanos = TimeUnit.MILLISECONDS.toNanos(maxDurationMsPerPhase ?: connectionType.speedTestPhaseDurationMillis)
         var latencyMs: Double? = null
         var jitterMs: Double? = null
-        var downloadMbps: Double? = null
-        var uploadMbps: Double? = null
+
+        send(SpeedTestProgress(phase = SpeedTestPhase.STABILIZING, connectionAgeMillisAtStart = connectionAgeMillis))
+        delay(2_500)
 
         // 1. Latency & Jitter phase
-        emit(
+        send(
             SpeedTestProgress(
                 phase = SpeedTestPhase.LATENCY,
                 overallProgress = 0.05f,
@@ -49,11 +54,11 @@ class HttpSpeedTestEngine(
         )
 
         val pingSamples = mutableListOf<Long>()
-        val pingCount = 3
-        for (i in 0 until pingCount) {
-            if (!currentCoroutineContext().isActive) break
-            val rtt = measurePing(pingUrl)
+        repeat(3) {
+            val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(500)
+            val rtt = measurePing(pingUrl, deadline)
             if (rtt != null) pingSamples.add(rtt)
+            delay(TimeUnit.NANOSECONDS.toMillis((deadline - System.nanoTime()).coerceAtLeast(0L)))
         }
 
         if (pingSamples.isNotEmpty()) {
@@ -67,7 +72,7 @@ class HttpSpeedTestEngine(
             } else 0.0
         }
 
-        emit(
+        send(
             SpeedTestProgress(
                 phase = SpeedTestPhase.LATENCY,
                 latencyMs = latencyMs,
@@ -78,18 +83,18 @@ class HttpSpeedTestEngine(
         )
 
         // 2. Download phase
-        emit(
+        send(
             SpeedTestProgress(
                 phase = SpeedTestPhase.DOWNLOAD,
                 latencyMs = latencyMs,
                 jitterMs = jitterMs,
-                overallProgress = 0.25f,
+                overallProgress = 0.2f,
                 connectionAgeMillisAtStart = connectionAgeMillis
             )
         )
 
-        downloadMbps = measureDownload(downloadUrl) { currentRate, fraction ->
-            emit(
+        val download = measureDownload(downloadUrl, phaseDurationNanos) { currentRate, fraction ->
+            send(
                 SpeedTestProgress(
                     phase = SpeedTestPhase.DOWNLOAD,
                     latencyMs = latencyMs,
@@ -101,8 +106,9 @@ class HttpSpeedTestEngine(
                 )
             )
         }
+        val downloadMbps = download.mbps
 
-        emit(
+        send(
             SpeedTestProgress(
                 phase = SpeedTestPhase.DOWNLOAD,
                 latencyMs = latencyMs,
@@ -115,33 +121,32 @@ class HttpSpeedTestEngine(
         )
 
         // 3. Upload phase
-        emit(
+        send(
             SpeedTestProgress(
                 phase = SpeedTestPhase.UPLOAD,
                 latencyMs = latencyMs,
                 jitterMs = jitterMs,
                 downloadMbps = downloadMbps,
-                overallProgress = 0.65f,
+                overallProgress = 0.6f,
                 connectionAgeMillisAtStart = connectionAgeMillis
             )
         )
 
-        uploadMbps = measureUpload(uploadUrl) { currentRate, fraction ->
-            emit(
+        val uploadMbps = measureUpload(uploadUrl, phaseDurationNanos, connectionType) { fraction, rate ->
+            trySend(
                 SpeedTestProgress(
                     phase = SpeedTestPhase.UPLOAD,
                     latencyMs = latencyMs,
                     jitterMs = jitterMs,
                     downloadMbps = downloadMbps,
-                    uploadMbps = currentRate,
-                    currentRateMbps = currentRate,
+                    currentRateMbps = rate,
                     overallProgress = 0.6f + 0.4f * fraction,
                     connectionAgeMillisAtStart = connectionAgeMillis
                 )
             )
         }
 
-        emit(
+        send(
             SpeedTestProgress(
                 phase = if (downloadMbps != null && uploadMbps != null) SpeedTestPhase.COMPLETED else SpeedTestPhase.FAILED,
                 latencyMs = latencyMs,
@@ -149,7 +154,8 @@ class HttpSpeedTestEngine(
                 downloadMbps = downloadMbps,
                 uploadMbps = uploadMbps,
                 overallProgress = 1.0f,
-                connectionAgeMillisAtStart = connectionAgeMillis
+                connectionAgeMillisAtStart = connectionAgeMillis,
+                downloadRateLimited = download.rateLimited
             )
         )
     }.catch { e ->
@@ -163,117 +169,156 @@ class HttpSpeedTestEngine(
         )
     }.flowOn(ioDispatcher)
 
-    private fun measurePing(url: String): Long? {
-        val request = Request.Builder().url(url).head().build()
-        val start = System.nanoTime()
-        return try {
-            client.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    (System.nanoTime() - start) / 1_000_000L
-                } else null
+    private fun measurePing(url: String, deadline: Long): Long? {
+        fun probe(request: Request): Long? {
+            val start = System.nanoTime()
+            if (start >= deadline) return null
+            val call = client.newCall(request)
+            call.timeout().deadlineNanoTime(deadline)
+            return call.execute().use { response ->
+                if (response.isSuccessful) TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start) else null
             }
-        } catch (_: Exception) {
+        }
+        val request = Request.Builder().url(url)
+        return try {
+            probe(request.head().build())
+        } catch (_: IOException) {
             try {
-                val getRequest = Request.Builder().url(url).build()
-                val getStart = System.nanoTime()
-                client.newCall(getRequest).execute().use { response ->
-                    if (response.isSuccessful) {
-                        (System.nanoTime() - getStart) / 1_000_000L
-                    } else null
-                }
-            } catch (_: Exception) {
+                probe(request.get().build())
+            } catch (_: IOException) {
                 null
             }
         }
     }
 
+    private data class DownloadMeasurement(val mbps: Double?, val rateLimited: Boolean)
+
     private suspend fun measureDownload(
         url: String,
+        durationNanos: Long,
         onProgress: suspend (currentRateMbps: Double, fraction: Float) -> Unit
-    ): Double? {
+    ): DownloadMeasurement {
         val request = Request.Builder().url(url).header("Accept-Encoding", "identity").build()
-        return try {
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return null
-                val body = response.body ?: return null
-                val stream = body.byteStream()
-                val buffer = ByteArray(8192)
-                var totalBytesRead = 0L
-                val startTime = System.nanoTime()
-                val maxDurationNanos = TimeUnit.MILLISECONDS.toNanos(maxDurationMsPerPhase)
-                var elapsedNanos = 0L
-                var lastProgressNanos = 0L
-
-                while (totalBytesRead < maxBytesPerPhase && elapsedNanos < maxDurationNanos &&
-                    currentCoroutineContext().isActive
-                ) {
-                    val readLimit = minOf(buffer.size.toLong(), maxBytesPerPhase - totalBytesRead).toInt()
-                    val read = stream.read(buffer, 0, readLimit)
-                    if (read == -1) break
-                    totalBytesRead += read
-                    elapsedNanos = System.nanoTime() - startTime
-
-                    if (elapsedNanos - lastProgressNanos >= TimeUnit.MILLISECONDS.toNanos(150)) {
-                        val byteFraction = totalBytesRead.toFloat() / maxBytesPerPhase
-                        val timeFraction = elapsedNanos.toFloat() / maxDurationNanos
-                        val rate = megabitsPerSecond(totalBytesRead, elapsedNanos)
-                        onProgress(rate, maxOf(byteFraction, timeFraction).coerceAtMost(1f))
-                        lastProgressNanos = elapsedNanos
+        val buffer = ByteArray(8192)
+        val startTime = System.nanoTime()
+        var totalBytesRead = 0L
+        var elapsedAtLastRead = 0L
+        var lastProgressNanos = 0L
+        var rateLimited = false
+        try {
+            while (totalBytesRead < maxBytesPerPhase && System.nanoTime() - startTime < durationNanos &&
+                currentCoroutineContext().isActive
+            ) {
+                val bytesBeforeRequest = totalBytesRead
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        rateLimited = response.code == 429
+                        return@use
+                    }
+                    val stream = response.body?.byteStream() ?: return@use
+                    while (totalBytesRead < maxBytesPerPhase && System.nanoTime() - startTime < durationNanos &&
+                        currentCoroutineContext().isActive
+                    ) {
+                        val readLimit = minOf(buffer.size.toLong(), maxBytesPerPhase - totalBytesRead).toInt()
+                        val read = stream.read(buffer, 0, readLimit)
+                        if (read == -1) break
+                        totalBytesRead += read
+                        val elapsedNanos = System.nanoTime() - startTime
+                        elapsedAtLastRead = elapsedNanos
+                        if (elapsedNanos - lastProgressNanos >= TimeUnit.MILLISECONDS.toNanos(150)) {
+                            val rate = megabitsPerSecond(totalBytesRead, elapsedNanos)
+                            onProgress(rate, (elapsedNanos.toFloat() / durationNanos).coerceAtMost(1f))
+                            lastProgressNanos = elapsedNanos
+                        }
                     }
                 }
-
-                if (elapsedNanos > 0 && totalBytesRead > 0) megabitsPerSecond(totalBytesRead, elapsedNanos) else null
+                if (totalBytesRead == bytesBeforeRequest) break
             }
         } catch (_: IOException) {
-            null
+            // Keep the bytes measured before a later request or read failed.
         }
+        val mbps = if (totalBytesRead > 0 && elapsedAtLastRead > 0) megabitsPerSecond(totalBytesRead, elapsedAtLastRead) else null
+        return DownloadMeasurement(mbps, rateLimited)
     }
 
     private suspend fun measureUpload(
         url: String,
-        onProgress: suspend (currentRateMbps: Double, fraction: Float) -> Unit
+        maxDurationNanos: Long,
+        connectionType: ConnectionType,
+        onProgress: (fraction: Float, rate: Double?) -> Unit
     ): Double? {
         val dummyChunk = ByteArray(16384)
-        val maxDurationNanos = TimeUnit.MILLISECONDS.toNanos(maxDurationMsPerPhase)
         val context = currentCoroutineContext()
         var startTime = 0L
         var totalBytesSent = 0L
+        var confirmedBytes = 0L
+        var confirmedElapsedNanos = 0L
+        var nextProgress = 0.25f
+        var sampleStartNanos = 0L
+        var sampleStartBytes = 0L
+        var lastEstimateNanos = 0L
+        var estimate: Double? = null
 
-        val requestBody = object : RequestBody() {
+        val mobileUpload = connectionType == ConnectionType.MOBILE
+        fun uploadBody(batchSize: Long) = object : RequestBody() {
             override fun contentType() = "application/octet-stream".toMediaType()
             override fun isOneShot() = true
+            override fun contentLength() = if (mobileUpload) batchSize else -1L
 
             override fun writeTo(sink: BufferedSink) {
-                startTime = System.nanoTime()
-                while (totalBytesSent < maxBytesPerPhase && System.nanoTime() - startTime < maxDurationNanos &&
-                    context.isActive
-                ) {
-                    val toWrite = minOf(dummyChunk.size.toLong(), maxBytesPerPhase - totalBytesSent).toInt()
+                if (startTime == 0L) startTime = System.nanoTime()
+                val batchEnd = totalBytesSent + batchSize
+                while (totalBytesSent < batchEnd && (mobileUpload || System.nanoTime() - startTime < maxDurationNanos) && context.isActive) {
+                    val toWrite = minOf(dummyChunk.size.toLong(), batchEnd - totalBytesSent).toInt()
                     sink.write(dummyChunk, 0, toWrite)
                     totalBytesSent += toWrite
+                    val elapsedNanos = System.nanoTime() - startTime
+                    val fraction = maxOf(totalBytesSent.toFloat() / maxBytesPerPhase, elapsedNanos.toFloat() / maxDurationNanos)
+                    // Skip the initial writes, which can mostly fill the local buffer.
+                    if (sampleStartNanos == 0L && elapsedNanos >= TimeUnit.MILLISECONDS.toNanos(150)) {
+                        sampleStartNanos = elapsedNanos
+                        sampleStartBytes = totalBytesSent
+                    }
+                    val sampleElapsed = elapsedNanos - sampleStartNanos
+                    val updateEstimate = sampleStartNanos > 0 && sampleElapsed >= TimeUnit.MILLISECONDS.toNanos(350) &&
+                        elapsedNanos - lastEstimateNanos >= TimeUnit.MILLISECONDS.toNanos(250)
+                    if (updateEstimate) {
+                        estimate = megabitsPerSecond(totalBytesSent - sampleStartBytes, sampleElapsed)
+                        lastEstimateNanos = elapsedNanos
+                    }
+                    if (fraction < 1f && (fraction >= nextProgress || updateEstimate)) {
+                        onProgress(fraction, estimate)
+                        nextProgress = fraction + 0.25f
+                    }
                 }
             }
         }
 
-        val request = Request.Builder()
-            .url(url)
-            .post(requestBody)
-            .build()
-
-        return try {
-            client.newCall(request).execute().use { response ->
-                val elapsedNanos = System.nanoTime() - startTime
-                if (!response.isSuccessful || totalBytesSent == 0L || elapsedNanos <= 0) return null
-                response.header("cf-meta-upload-bytes")?.let { confirmedBytes ->
-                    if (confirmedBytes.toLongOrNull() != totalBytesSent) return null
+        try {
+            do {
+                val bytesBeforeRequest = totalBytesSent
+                val batchSize = minOf(if (mobileUpload) 65_536L else 25_000_000L, maxBytesPerPhase - totalBytesSent)
+                val request = Request.Builder().url(url).post(uploadBody(batchSize)).build()
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        Logger.getLogger("SagapMoSpeedTest").warning("Upload response HTTP ${response.code}")
+                        return@use
+                    }
+                    response.header("cf-meta-upload-bytes")?.let { serverBytes ->
+                        if (serverBytes.toLongOrNull() != totalBytesSent - bytesBeforeRequest) {
+                            Logger.getLogger("SagapMoSpeedTest").warning("Upload byte count mismatch")
+                            return@use
+                        }
+                    }
+                    confirmedBytes = totalBytesSent
+                    confirmedElapsedNanos = System.nanoTime() - startTime
                 }
-                val rate = megabitsPerSecond(totalBytesSent, elapsedNanos)
-                onProgress(rate, 1.0f)
-                rate
-            }
-        } catch (_: IOException) {
-            null
+                if (confirmedBytes == bytesBeforeRequest || confirmedBytes != totalBytesSent) break
+            } while (totalBytesSent < maxBytesPerPhase && System.nanoTime() - startTime < maxDurationNanos && context.isActive)
+        } catch (error: IOException) {
+            Logger.getLogger("SagapMoSpeedTest").warning("Upload interrupted ${error.javaClass.simpleName}")
         }
+        return if (confirmedBytes > 0 && confirmedElapsedNanos > 0) megabitsPerSecond(confirmedBytes, confirmedElapsedNanos) else null
     }
 
     private fun megabitsPerSecond(bytes: Long, elapsedNanos: Long): Double =
