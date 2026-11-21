@@ -204,6 +204,9 @@ class SagapMoViewModel(
         }
     }
     fun dismissCapture() { state.update { it.copy(captureVisible = false) } }
+    fun showRecordingProgress() {
+        state.update { if (it.recording) it.copy(captureVisible = true) else it }
+    }
     fun cancelCapture() {
         val current = state.value
         if (current.recording && current.capturePhase != CapturePhase.SAVING) {

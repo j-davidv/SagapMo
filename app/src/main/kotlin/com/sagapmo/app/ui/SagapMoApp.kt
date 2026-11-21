@@ -14,7 +14,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sagapmo.app.*
@@ -49,8 +53,8 @@ import org.maplibre.compose.style.BaseStyle
                     topBar = { AppHeader(viewModel::openSettings) },
                     bottomBar = {
                         Column {
-                            if (expanded) RecordPanel(state, onRecord, viewModel::retrySave)
-                            if (!expanded) FloatingNavigation(state, viewModel::setDestination, onRecord, viewModel::retrySave)
+                            if (expanded) RecordPanel(state, onRecord, viewModel::retrySave, viewModel::showRecordingProgress)
+                            if (!expanded) FloatingNavigation(state, viewModel::setDestination, onRecord, viewModel::retrySave, viewModel::showRecordingProgress)
                             else Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
                         }
                     }) { padding ->
@@ -123,26 +127,48 @@ import org.maplibre.compose.style.BaseStyle
     }
 }
 
-@Composable private fun RecordPanel(state: AppUiState, onRecord: () -> Unit, onRetrySave: () -> Unit) {
+@Composable private fun RecordPanel(state: AppUiState, onRecord: () -> Unit, onRetrySave: () -> Unit, onViewProgress: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(20.dp, 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        val retry = state.capturePhase == CapturePhase.SAVE_FAILED && !state.captureVisible
-        PrimaryAction(if (retry) "Retry save" else if (state.recording) "Recording…" else "Record reading",
-            if (retry) onRetrySave else onRecord, enabled = retry || (!state.recording && state.pendingSave == null), symbol = AppSymbol.RECORD)
+        if (state.recording && !state.captureVisible) {
+            RecordingProgressButton(onViewProgress, Modifier.fillMaxWidth())
+        } else {
+            val retry = state.capturePhase == CapturePhase.SAVE_FAILED && !state.captureVisible
+            PrimaryAction(if (retry) "Retry save" else if (state.recording) "Recording…" else "Record reading",
+                if (retry) onRetrySave else onRecord, enabled = retry || (!state.recording && state.pendingSave == null), symbol = AppSymbol.RECORD)
+        }
+    }
+}
+
+@Composable private fun RecordingProgressButton(onViewProgress: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    FilledTonalButton(onViewProgress, modifier.heightIn(min = 48.dp).semantics {
+        liveRegion = LiveRegionMode.Polite
+        onClick(label = "View recording progress", action = null)
+    },
+        colors = ButtonDefaults.filledTonalButtonColors(containerColor = colors.primaryContainer, contentColor = colors.onPrimaryContainer),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
+        CircularProgressIndicator(Modifier.size(16.dp).clearAndSetSemantics {}, color = colors.onPrimaryContainer, strokeWidth = 2.dp)
+        Spacer(Modifier.width(8.dp))
+        Text("Recording…")
     }
 }
 
 @Composable private fun FloatingNavigation(state: AppUiState, onDestination: (Destination) -> Unit,
-    onRecord: () -> Unit, onRetrySave: () -> Unit) {
+    onRecord: () -> Unit, onRetrySave: () -> Unit, onViewProgress: () -> Unit) {
     val retry = state.capturePhase == CapturePhase.SAVE_FAILED && !state.captureVisible
     val label = if (retry) "Retry save" else if (state.recording) "Recording…" else "Record reading"
     Box(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(12.dp, 14.dp)) {
-        Surface(Modifier.fillMaxWidth().height(72.dp), shape = CircleShape,
+        Surface(Modifier.fillMaxWidth().heightIn(min = 72.dp), shape = CircleShape,
             color = MaterialTheme.colorScheme.surface, shadowElevation = 12.dp) {
             Row(Modifier.padding(horizontal = 14.dp), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
                 Destination.entries.forEach { destination ->
                     if (destination == Destination.READINGS) {
-                        AppTooltip(label) {
+                        if (state.recording && !state.captureVisible) {
+                            Box(Modifier.weight(1f).padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
+                                RecordingProgressButton(onViewProgress)
+                            }
+                        } else AppTooltip(label) {
                             FilledIconButton(if (retry) onRetrySave else onRecord,
                                 Modifier.size(64.dp).offset(y = (-3).dp),
                                 enabled = retry || (!state.recording && state.pendingSave == null),

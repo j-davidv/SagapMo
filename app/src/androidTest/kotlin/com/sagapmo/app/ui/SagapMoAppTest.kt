@@ -40,13 +40,24 @@ class SagapMoAppTest {
         compose.onNodeWithText("Getting location").assertIsDisplayed()
         compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.ProgressBarRangeInfo, ProgressBarRangeInfo.Indeterminate))
             .assertIsDisplayed()
+        compose.onNodeWithText("Keep browsing").performClick()
+        compose.onNodeWithText("Recording…").assertIsDisplayed()
+        compose.onNodeWithText("View progress").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Map").performClick()
+        compose.onNodeWithText("Recording…").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Readings").performClick()
         locationGate.complete(Unit)
         compose.waitUntil(5000) { model.uiState.value.speedTestProgress?.phase == SpeedTestPhase.UPLOAD }
+        compose.onNodeWithText("Measuring internet speed").assertDoesNotExist()
+        compose.onNodeWithText("Recording…").performClick()
         compose.onNodeWithText("No map pin for this reading").assertIsDisplayed()
         compose.onNodeWithText("Testing upload speed…").assertIsDisplayed()
+        compose.onNodeWithText("Keep browsing").performScrollTo().performClick()
         speedGate.complete(Unit)
         compose.waitUntil(5000) { model.uiState.value.capturePhase == CapturePhase.SAVED }
         compose.onNodeWithText("Speed test completed").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Recording…").assertDoesNotExist()
+        assertEquals(1, dao.rows.value.size)
     }
 
     @Test fun partialSpeedTestShowsUnavailableDownloadAndMeasuredUpload() {
