@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import com.sagapmo.app.*
 import com.sagapmo.app.capture.*
 import com.sagapmo.app.reading.*
+import com.sagapmo.app.speedtest.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.junit.*
@@ -21,6 +22,21 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 
 class SagapMoAppTest {
+    @Test fun partialSpeedTestShowsUnavailableDownloadAndMeasuredUpload() {
+        val engine = object : SpeedTestEngine {
+            override fun runSpeedTest(connectionAgeMillis: Long?) =
+                flowOf(SpeedTestProgress(phase = SpeedTestPhase.FAILED, uploadMbps = 12.5, overallProgress = 1f))
+        }
+        start(speedTest = engine)
+        compose.runOnIdle { model.setIncludeSpeedTest(true) }
+        compose.onNodeWithContentDescription("Record reading").performClick()
+        compose.waitUntil(5000) { model.uiState.value.capturePhase == CapturePhase.SAVED }
+        compose.onNodeWithText("Download: Unavailable").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Upload: 12.5 Mbps").assertIsDisplayed()
+        compose.onNodeWithText("Show saved reading").performScrollTo().performClick()
+        compose.onNodeWithText("Download speed unavailable").performScrollTo().assertIsDisplayed()
+    }
+
     @Test fun descriptionCanBeAddedAfterCaptureEditedAndClearedInDetails() {
         start()
         compose.onNodeWithContentDescription("Record reading").performClick()
@@ -210,13 +226,17 @@ class SagapMoAppTest {
         assertTrue("Map continues below the floating action", map.bottom > record.bottom)
         assertTrue("Attribution stays above navigation", attribution.bottom < record.top)
     }
-    private fun start(rows: List<Reading> = emptyList(), baseStyle: BaseStyle = BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty")) {
+    private fun start(
+        rows: List<Reading> = emptyList(),
+        baseStyle: BaseStyle = BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty"),
+        speedTest: SpeedTestEngine = HttpSpeedTestEngine(),
+    ) {
         dao.rows.value = rows
         compose.runOnUiThread {
             model = SagapMoViewModel(signal, object : LocationReader {
                 override fun currentAccess() = LocationAccess(true, true, true)
                 override suspend fun locate(): LocationResult = location
-            }, dao)
+            }, dao, speedTest)
             model.setDestination(Destination.READINGS)
         }
         compose.setContent { SagapMoTheme { SagapMoApp(model, onRecord = { model.record(false) }, onOpenSettings = { settingsOpened = true }, baseStyle = baseStyle) } }
