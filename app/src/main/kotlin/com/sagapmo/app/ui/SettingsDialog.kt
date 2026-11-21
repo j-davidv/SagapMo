@@ -14,6 +14,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.sagapmo.app.AppUiState
 
 @Composable
@@ -25,19 +26,19 @@ internal fun SettingsDialog(
     onToggleAlwaysCollapseAdvanced: (Boolean) -> Unit,
     onOpenSystemSettings: () -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
             modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 24.dp)
+                .widthIn(max = 560.dp)
                 .fillMaxWidth()
-                .padding(16.dp)
                 .testTag("settings-dialog")
         ) {
             Column(
                 modifier = Modifier
-                    .padding(20.dp)
+                    .padding(24.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -70,7 +71,7 @@ internal fun SettingsDialog(
                             .testTag("setting-map-2d")
                     ) {
                         Row(
-                            modifier = Modifier.padding(14.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
@@ -78,7 +79,7 @@ internal fun SettingsDialog(
                                 selected = !state.use3dMap,
                                 onClick = { onToggle3dMap(false) }
                             )
-                            Column(Modifier.weight(1f)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     "2D Map (Recommended)",
                                     style = MaterialTheme.typography.bodyMedium,
@@ -102,7 +103,7 @@ internal fun SettingsDialog(
                             .testTag("setting-map-3d")
                     ) {
                         Row(
-                            modifier = Modifier.padding(14.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
@@ -110,7 +111,7 @@ internal fun SettingsDialog(
                                 selected = state.use3dMap,
                                 onClick = { onToggle3dMap(true) }
                             )
-                            Column(Modifier.weight(1f)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     "3D Map",
                                     style = MaterialTheme.typography.bodyMedium,
@@ -144,11 +145,11 @@ internal fun SettingsDialog(
                             .testTag("setting-speed-test")
                     ) {
                         Row(
-                            modifier = Modifier.padding(14.dp),
+                            modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                            Column(Modifier.weight(1f).padding(end = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     "Measure Speed During Capture",
                                     style = MaterialTheme.typography.bodyMedium,
@@ -186,11 +187,11 @@ internal fun SettingsDialog(
                             .testTag("setting-always-collapse-advanced")
                     ) {
                         Row(
-                            modifier = Modifier.padding(14.dp),
+                            modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                            Column(Modifier.weight(1f).padding(end = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     "Always collapse Advanced Information",
                                     style = MaterialTheme.typography.bodyMedium,
