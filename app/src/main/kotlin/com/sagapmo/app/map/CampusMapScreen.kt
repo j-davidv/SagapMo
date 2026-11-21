@@ -2,7 +2,6 @@ package com.sagapmo.app.map
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -60,8 +59,22 @@ private val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421)
         }
     }
     DisposableEffect(mapRuntime) { onDispose { if (runtime == null) mapRuntime.close() } }
+    val locatedReadings = remember(readings) {
+        readings.mapNotNull { reading ->
+            val latitude = reading.latitude ?: return@mapNotNull null
+            val longitude = reading.longitude ?: return@mapNotNull null
+            reading to Position(longitude, latitude)
+        }
+    }
+    val pinArtwork = locatedReadings.map { (reading, _) -> reading.connectionType to reading.rating }
+        .distinct().associateWith { (type, rating) -> key(type, rating) { rememberPinArtwork(type, rating) } }
     val map = rememberMapState(runtime = mapRuntime, baseStyle = baseStyle, initialCameraPosition = initialCamera) {
         campusLandmarks.forEach { CampusLabel(it) }
+        locatedReadings.forEach { (reading, position) ->
+            key(reading.id) {
+                ReadingPinLayer(reading.id, position, pinArtwork.getValue(reading.connectionType to reading.rating))
+            }
+        }
     }
     LaunchedEffect(map) {
         withContext(Dispatchers.Main.immediate) {
@@ -115,9 +128,13 @@ private val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421)
                         zoom = { map.cameraPosition.zoom }, modifier = Modifier.align(Alignment.TopStart))
                     DisappearingCompassButton(Modifier.align(Alignment.TopEnd).padding(top = 56.dp))
                 }
-                readings.filter { it.latitude != null && it.longitude != null }.forEach { reading ->
-                    SamplePin(reading, Modifier.placedAt(Position(reading.longitude!!, reading.latitude!!), alignment = Alignment.BottomCenter)) {
-                        onOpenReading(reading)
+                locatedReadings.forEach { (reading, position) ->
+                    key(reading.id) {
+                        val artwork = pinArtwork.getValue(reading.connectionType to reading.rating)
+                        SamplePinTarget(reading, artwork, showArtwork = map.style.loadState != StyleLoadState.Ready,
+                            modifier = Modifier.placedAt(position, alignment = Alignment.BottomCenter)) {
+                            onOpenReading(reading)
+                        }
                     }
                 }
             }
@@ -187,25 +204,15 @@ private val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421)
     }
 }
 
-private val PinShape = GenericShape { size, _ ->
-    val w = size.width; val h = size.height
-    moveTo(w / 2, h)
-    cubicTo(w * .36f, h * .80f, 0f, h * .53f, 0f, h * .39f)
-    cubicTo(0f, -h * .13f, w, -h * .13f, w, h * .39f)
-    cubicTo(w, h * .53f, w * .64f, h * .80f, w / 2, h)
-    close()
-}
-@Composable private fun SamplePin(reading: Reading, modifier: Modifier, onClick: () -> Unit) {
-    val (ink, background) = ratingPair(reading.rating)
-    Column(modifier.testTag("pin-${reading.id}").widthIn(min = 48.dp).heightIn(min = 64.dp)
+@Composable private fun SamplePinTarget(
+    reading: Reading, artwork: PinArtwork, showArtwork: Boolean, modifier: Modifier, onClick: () -> Unit,
+) {
+    Box(modifier.offset(y = artwork.labelHeight).testTag("pin-${reading.id}")
+        .size(artwork.width, maxOf(64.dp, artwork.height))
         .semantics(mergeDescendants = true) { contentDescription = "${reading.connectionType.label()}, ${reading.rating.label()}, ${reading.rawDisplay()}, ${reading.shortTime()}" }
-        .clickable(role = Role.Button, onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
-        Surface(Modifier.size(36.dp, 44.dp), shape = PinShape, color = ink, contentColor = background, shadowElevation = 3.dp,
-            border = BorderStroke(2.dp, MaterialTheme.colorScheme.surface)) {
-            Box(Modifier.padding(bottom = 10.dp), contentAlignment = Alignment.Center) { AppIcon(reading.connectionType.symbol(), modifier = Modifier.size(22.dp)) }
-        }
-        Surface(shape = RoundedCornerShape(4.dp), color = MaterialTheme.colorScheme.surface) {
-            Text(reading.rating.label(), Modifier.padding(5.dp, 2.dp), style = MaterialTheme.typography.labelSmall)
+        .clickable(role = Role.Button, onClick = onClick), contentAlignment = Alignment.BottomCenter) {
+        if (showArtwork) {
+            Image(artwork.painter, contentDescription = null, modifier = Modifier.size(artwork.width, artwork.height))
         }
     }
 }

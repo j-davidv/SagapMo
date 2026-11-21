@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.runBlocking
 import org.maplibre.compose.camera.CameraPosition
+import org.maplibre.spatialk.geojson.Position
 
 class CampusMapScreenTest {
     @get:Rule val compose = createComposeRule(effectContext = Dispatchers.Main)
@@ -63,6 +64,32 @@ class CampusMapScreenTest {
         compose.onNodeWithText("Reading details").assertIsDisplayed()
         assertEquals(located, selected)
         compose.onNodeWithTag("pin-test-mobile").assertDoesNotExist()
+    }
+    @Test fun readingPinIsRenderedAtItsSavedLocationAfterPanAndZoom() {
+        val reading = sampleReading()
+        val position = Position(reading.longitude!!, reading.latitude!!)
+        lateinit var map: MapState
+        compose.setContent {
+            SagapMoTheme {
+                val artwork = rememberPinArtwork(reading.connectionType, reading.rating)
+                map = rememberMapState(baseStyle = localStyle,
+                    initialCameraPosition = CameraPosition(center = position, zoom = 17.0)) {
+                    ReadingPinLayer(reading.id, position, artwork)
+                }
+                MaplibreMap(state = map, modifier = Modifier.fillMaxSize())
+            }
+        }
+        fun pinAnchor() = runBlocking(Dispatchers.Main) { map.screenLocationFromPosition(position) }
+        fun pinIsRendered(): Boolean = runBlocking(Dispatchers.Main) {
+            val anchor = map.screenLocationFromPosition(position) ?: return@runBlocking false
+            map.queryRenderedFeatures(anchor, layerIds = setOf("pin-${reading.id}")).isNotEmpty()
+        }
+        compose.waitUntil(10_000) { pinIsRendered() }
+        val initialAnchor = pinAnchor()
+        compose.runOnIdle { map.panBy(DpOffset(35.dp, 25.dp)); map.scaleBy(1.5) }
+        compose.waitUntil(5000) {
+            map.cameraPosition.zoom > 17.0 && !map.isCameraMoving && pinAnchor() != initialAnchor && pinIsRendered()
+        }
     }
     @Test fun focusMovesToSelectedGeographicReading() {
         val distant = sampleReading("distant").copy(latitude = 13.7900, longitude = 121.0800)
