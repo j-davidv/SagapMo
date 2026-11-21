@@ -42,6 +42,7 @@ private val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421)
     onViewReadings: () -> Unit, runtime: MapRuntime?, baseStyle: BaseStyle, attempt: Int,
     initialCamera: CameraPosition, onRetry: (CameraPosition) -> Unit, emptyTitle: String?, onShowAll: (() -> Unit)?, resourceProvider: MapResourceProvider?, topOverlayHeight: Dp, bottomOverlayHeight: Dp) {
     var load by remember { mutableStateOf(MapLoadState(attempt, MapLoadStatus.LOADING)) }
+    var errorDismissed by remember { mutableStateOf(false) }
     var observing by remember { mutableStateOf(false) }
     var lastFrameFull by remember { mutableStateOf(false) }
     val failedResources = remember { mutableStateListOf<String>() }
@@ -170,9 +171,9 @@ private val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421)
                 MapLoadStatus.LOADING -> Surface(Modifier.align(Alignment.BottomCenter).padding(bottom = bottomOverlayHeight).padding(12.dp).testTag("map-loading"), shape = RoundedCornerShape(6.dp)) {
                     Text("Loading map… Readings are still available.", Modifier.padding(10.dp, 8.dp), style = MaterialTheme.typography.bodySmall)
                 }
-                MapLoadStatus.FAILED -> Box(Modifier.fillMaxSize().padding(top = topOverlayHeight, bottom = bottomOverlayHeight)) { Surface(Modifier.align(Alignment.Center).padding(16.dp).testTag("map-error"), shape = RoundedCornerShape(16.dp)) {
+                MapLoadStatus.FAILED -> if (!errorDismissed) Box(Modifier.fillMaxSize().padding(top = topOverlayHeight, bottom = bottomOverlayHeight)) { Surface(Modifier.align(Alignment.Center).padding(16.dp).testTag("map-error"), shape = RoundedCornerShape(16.dp)) {
                     Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp).semantics { liveRegion = LiveRegionMode.Polite }, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Map could not load", style = MaterialTheme.typography.titleSmall)
+                        SheetHeading("Map could not load", "Close map notice", { errorDismissed = true })
                         Text("Your saved readings are still available. You can record a valid signal even if map tiles fail.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton({ onRetry(map.cameraPosition) }, Modifier.heightIn(min = 48.dp), shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)) { Text("Retry map") }

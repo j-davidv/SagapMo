@@ -128,6 +128,8 @@ class CampusMapScreenTest {
         compose.setContent { SagapMoTheme { CampusMapScreen(listOf(sampleReading()), null, {}, {}, baseStyle = style, resourceProvider = provider) } }
         compose.waitUntil(20_000) { compose.onAllNodesWithText("Retry map").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("View readings").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Close map notice").performClick()
+        compose.onNodeWithTag("map-error").assertDoesNotExist()
         compose.onNodeWithTag("pin-test-wifi").assertExists()
     }
     @Test fun stalledMapExposesRetryAfter15SecondsAndLateFullFrameClearsIt() {
