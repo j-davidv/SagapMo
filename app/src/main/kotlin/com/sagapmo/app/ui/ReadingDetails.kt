@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.sagapmo.app.reading.*
+import com.sagapmo.app.speedtest.SpeedTestStatus
 import java.time.*
 import java.util.Locale
 
@@ -126,6 +127,15 @@ data class MetricInfo(val title: String, val description: String)
                         )
                     }
                 }
+            }
+
+            if (reading.speedTestStatus == SpeedTestStatus.FAILED) {
+                val message = when {
+                    reading.downloadMbps != null -> "Upload speed unavailable"
+                    reading.uploadMbps != null -> "Download speed unavailable"
+                    else -> "Download and upload speeds unavailable"
+                }
+                Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
             // Advanced Information collapsible section

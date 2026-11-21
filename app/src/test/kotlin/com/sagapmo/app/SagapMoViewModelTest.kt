@@ -139,6 +139,20 @@ class SagapMoViewModelTest {
         assertEquals(SpeedTestStatus.SKIPPED, saved.speedTestStatus)
     }
 
+    @Test fun recordSavesSignalAndAvailableMetricsAfterPartialSpeedTest() = runTest(dispatcher) {
+        speedTest.resultProgress = speedTest.resultProgress.copy(
+            phase = SpeedTestPhase.FAILED,
+            downloadMbps = null
+        )
+        model.setIncludeSpeedTest(true)
+        model.record(false); advanceUntilIdle()
+        val saved = dao.rows.value.single()
+        assertEquals(CapturePhase.SAVED, model.uiState.value.capturePhase)
+        assertNull(saved.downloadMbps)
+        assertEquals(20.0, saved.uploadMbps!!, 0.01)
+        assertEquals(SpeedTestStatus.FAILED, saved.speedTestStatus)
+    }
+
     @Test fun settingsToggleUse3dMapUpdatesStateAndPersists() = runTest(dispatcher) {
         val savedPrefs = mutableMapOf<String, Boolean>()
         val customModel = SagapMoViewModel(
