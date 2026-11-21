@@ -14,6 +14,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okio.BufferedSink
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
@@ -24,7 +25,8 @@ class HttpSpeedTestEngine(
         .writeTimeout(5, TimeUnit.SECONDS)
         .build(),
     private val pingUrl: String = "https://speed.cloudflare.com/__down?bytes=0",
-    private val downloadUrl: String = "https://speed.cloudflare.com/__down?bytes=15000000",
+    // Cloudflare rejected the larger download for native clients without browser headers.
+    private val downloadUrl: String = "https://speed.cloudflare.com/__down?bytes=10000000",
     private val uploadUrl: String = "https://speed.cloudflare.com/__up",
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val maxBytesPerPhase: Long = 15L * 1024L * 1024L,
@@ -139,14 +141,13 @@ class HttpSpeedTestEngine(
             )
         }
 
-        // Completed
         emit(
             SpeedTestProgress(
-                phase = SpeedTestPhase.COMPLETED,
+                phase = if (downloadMbps != null && uploadMbps != null) SpeedTestPhase.COMPLETED else SpeedTestPhase.FAILED,
                 latencyMs = latencyMs,
                 jitterMs = jitterMs,
-                downloadMbps = downloadMbps ?: 0.0,
-                uploadMbps = uploadMbps ?: 0.0,
+                downloadMbps = downloadMbps,
+                uploadMbps = uploadMbps,
                 overallProgress = 1.0f,
                 connectionAgeMillisAtStart = connectionAgeMillis
             )
@@ -190,7 +191,7 @@ class HttpSpeedTestEngine(
         url: String,
         onProgress: suspend (currentRateMbps: Double, fraction: Float) -> Unit
     ): Double? {
-        val request = Request.Builder().url(url).build()
+        val request = Request.Builder().url(url).header("Accept-Encoding", "identity").build()
         return try {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
@@ -198,39 +199,32 @@ class HttpSpeedTestEngine(
                 val stream = body.byteStream()
                 val buffer = ByteArray(8192)
                 var totalBytesRead = 0L
-                val startTime = System.currentTimeMillis()
-                var lastProgressTime = startTime
+                val startTime = System.nanoTime()
+                val maxDurationNanos = TimeUnit.MILLISECONDS.toNanos(maxDurationMsPerPhase)
+                var elapsedNanos = 0L
+                var lastProgressNanos = 0L
 
-                while (currentCoroutineContext().isActive) {
-                    val read = stream.read(buffer)
+                while (totalBytesRead < maxBytesPerPhase && elapsedNanos < maxDurationNanos &&
+                    currentCoroutineContext().isActive
+                ) {
+                    val readLimit = minOf(buffer.size.toLong(), maxBytesPerPhase - totalBytesRead).toInt()
+                    val read = stream.read(buffer, 0, readLimit)
                     if (read == -1) break
                     totalBytesRead += read
+                    elapsedNanos = System.nanoTime() - startTime
 
-                    val now = System.currentTimeMillis()
-                    val elapsedMs = now - startTime
-
-                    if (now - lastProgressTime >= 150) {
-                        val elapsedSec = elapsedMs / 1000.0
-                        if (elapsedSec > 0.0) {
-                            val rateMbps = (totalBytesRead * 8.0) / (elapsedSec * 1_000_000.0)
-                            val byteFraction = (totalBytesRead.toFloat() / maxBytesPerPhase).coerceIn(0f, 1f)
-                            val timeFraction = (elapsedMs.toFloat() / maxDurationMsPerPhase).coerceIn(0f, 1f)
-                            onProgress(rateMbps, maxOf(byteFraction, timeFraction))
-                        }
-                        lastProgressTime = now
-                    }
-
-                    if (totalBytesRead >= maxBytesPerPhase || elapsedMs >= maxDurationMsPerPhase) {
-                        break
+                    if (elapsedNanos - lastProgressNanos >= TimeUnit.MILLISECONDS.toNanos(150)) {
+                        val byteFraction = totalBytesRead.toFloat() / maxBytesPerPhase
+                        val timeFraction = elapsedNanos.toFloat() / maxDurationNanos
+                        val rate = megabitsPerSecond(totalBytesRead, elapsedNanos)
+                        onProgress(rate, maxOf(byteFraction, timeFraction).coerceAtMost(1f))
+                        lastProgressNanos = elapsedNanos
                     }
                 }
 
-                val finalElapsedSec = (System.currentTimeMillis() - startTime) / 1000.0
-                if (finalElapsedSec > 0.0 && totalBytesRead > 0) {
-                    (totalBytesRead * 8.0) / (finalElapsedSec * 1_000_000.0)
-                } else null
+                if (elapsedNanos > 0 && totalBytesRead > 0) megabitsPerSecond(totalBytesRead, elapsedNanos) else null
             }
-        } catch (_: Exception) {
+        } catch (_: IOException) {
             null
         }
     }
@@ -239,22 +233,22 @@ class HttpSpeedTestEngine(
         url: String,
         onProgress: suspend (currentRateMbps: Double, fraction: Float) -> Unit
     ): Double? {
-        val chunkSize = 16384
-        val dummyChunk = ByteArray(chunkSize)
-        val startTime = System.currentTimeMillis()
+        val dummyChunk = ByteArray(16384)
+        val maxDurationNanos = TimeUnit.MILLISECONDS.toNanos(maxDurationMsPerPhase)
+        val context = currentCoroutineContext()
+        var startTime = 0L
         var totalBytesSent = 0L
 
         val requestBody = object : RequestBody() {
             override fun contentType() = "application/octet-stream".toMediaType()
-            override fun contentLength() = maxBytesPerPhase
+            override fun isOneShot() = true
+
             override fun writeTo(sink: BufferedSink) {
-                while (totalBytesSent < maxBytesPerPhase) {
-                    val now = System.currentTimeMillis()
-                    val elapsedMs = now - startTime
-                    if (elapsedMs >= maxDurationMsPerPhase) {
-                        break
-                    }
-                    val toWrite = minOf(chunkSize.toLong(), maxBytesPerPhase - totalBytesSent).toInt()
+                startTime = System.nanoTime()
+                while (totalBytesSent < maxBytesPerPhase && System.nanoTime() - startTime < maxDurationNanos &&
+                    context.isActive
+                ) {
+                    val toWrite = minOf(dummyChunk.size.toLong(), maxBytesPerPhase - totalBytesSent).toInt()
                     sink.write(dummyChunk, 0, toWrite)
                     totalBytesSent += toWrite
                 }
@@ -267,21 +261,21 @@ class HttpSpeedTestEngine(
             .build()
 
         return try {
-            client.newCall(request).execute().use { _ ->
-                val finalElapsedSec = (System.currentTimeMillis() - startTime) / 1000.0
-                if (finalElapsedSec > 0.0 && totalBytesSent > 0) {
-                    val rate = (totalBytesSent * 8.0) / (finalElapsedSec * 1_000_000.0)
-                    onProgress(rate, 1.0f)
-                    rate
-                } else null
-            }
-        } catch (_: Exception) {
-            val finalElapsedSec = (System.currentTimeMillis() - startTime) / 1000.0
-            if (finalElapsedSec > 0.0 && totalBytesSent > 0) {
-                val rate = (totalBytesSent * 8.0) / (finalElapsedSec * 1_000_000.0)
+            client.newCall(request).execute().use { response ->
+                val elapsedNanos = System.nanoTime() - startTime
+                if (!response.isSuccessful || totalBytesSent == 0L || elapsedNanos <= 0) return null
+                response.header("cf-meta-upload-bytes")?.let { confirmedBytes ->
+                    if (confirmedBytes.toLongOrNull() != totalBytesSent) return null
+                }
+                val rate = megabitsPerSecond(totalBytesSent, elapsedNanos)
                 onProgress(rate, 1.0f)
                 rate
-            } else null
+            }
+        } catch (_: IOException) {
+            null
         }
     }
+
+    private fun megabitsPerSecond(bytes: Long, elapsedNanos: Long): Double =
+        bytes * 8_000.0 / elapsedNanos
 }
