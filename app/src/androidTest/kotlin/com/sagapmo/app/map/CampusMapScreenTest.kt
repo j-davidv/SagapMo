@@ -17,11 +17,35 @@ import org.maplibre.compose.resource.*
 import kotlinx.coroutines.CompletableDeferred
 import android.os.SystemClock
 import java.util.UUID
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.runBlocking
+import org.maplibre.compose.camera.CameraPosition
 
 class CampusMapScreenTest {
     @get:Rule val compose = createComposeRule(effectContext = Dispatchers.Main)
     private val runtimes = mutableListOf<MapRuntime>()
     @After fun closeRuntimes() { compose.runOnUiThread { runtimes.forEach { it.close() } } }
+    @Test fun campusLabelIsRenderedAtItsMapAnchorAfterPanAndZoom() {
+        val landmark = campusLandmarks.first()
+        lateinit var map: MapState
+        compose.setContent {
+            map = rememberMapState(baseStyle = localStyle,
+                initialCameraPosition = CameraPosition(center = landmark.position, zoom = 18.0)) {
+                CampusLabel(landmark)
+            }
+            MaplibreMap(state = map, modifier = Modifier.fillMaxSize())
+        }
+        fun renderedAtAnchor(): Boolean = runBlocking(Dispatchers.Main) {
+            val anchor = map.screenLocationFromPosition(landmark.position) ?: return@runBlocking false
+            map.queryRenderedFeatures(anchor, layerIds = setOf("campus-${landmark.name}")).isNotEmpty()
+        }
+        compose.waitUntil(10_000) { renderedAtAnchor() }
+        compose.runOnIdle { map.panBy(DpOffset(35.dp, 25.dp)); map.scaleBy(1.5) }
+        compose.waitUntil(5000) { map.cameraPosition.zoom > 18.0 && !map.isCameraMoving && renderedAtAnchor() }
+        compose.runOnIdle { map.setCameraPosition(CameraPosition(center = landmark.position, zoom = 16.0)) }
+        compose.waitUntil(5000) { map.cameraPosition.zoom < 17.0 && !renderedAtAnchor() }
+    }
     @Test fun onlyLocatedRowsBecomePinsAndOpenStoredDetails() {
         val located = sampleReading()
         var selected by mutableStateOf<Reading?>(null)

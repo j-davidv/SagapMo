@@ -167,16 +167,14 @@ class SagapMoAppTest {
     }
     private lateinit var model: SagapMoViewModel
     private var settingsOpened = false
-    @Test fun campusLabelsFollowGeographicCameraFocus() {
+    @Test fun campusLandmarkNamesRemainAccessible() {
         start(listOf(sampleReading()), baseStyle = com.sagapmo.app.map.CampusMapScreenTest.localStyle)
         compose.runOnIdle { model.setDestination(Destination.MAP) }
-        compose.waitUntil(5000) { compose.onAllNodesWithTag("landmark-GYMNASIUM").fetchSemanticsNodes().isNotEmpty() }
-        for (landmark in com.sagapmo.app.map.campusLandmarks) compose.onNodeWithText(landmark.name).assertExists()
-        val initial = compose.onNodeWithTag("landmark-GYMNASIUM").fetchSemanticsNode().boundsInRoot
+        compose.waitUntil(5000) { compose.onAllNodesWithContentDescription("GYMNASIUM", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        for (landmark in com.sagapmo.app.map.campusLandmarks)
+            compose.onNodeWithContentDescription(landmark.name.replace('\n', ' '), substring = true).assertExists()
         compose.runOnIdle { model.showOnMap(sampleReading()) }
-        compose.waitUntil(5000) {
-            compose.onNodeWithTag("landmark-GYMNASIUM").fetchSemanticsNode().boundsInRoot != initial
-        }
+        compose.onNodeWithContentDescription("GYMNASIUM", substring = true).assertExists()
     }
     @Test fun circularMapFiltersSitAboveFocusAndShareSelectionWithReadings() {
         start(listOf(sampleReading(), mobileReading()))

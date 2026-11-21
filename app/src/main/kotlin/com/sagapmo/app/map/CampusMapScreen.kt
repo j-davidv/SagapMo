@@ -60,7 +60,9 @@ private val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421)
         }
     }
     DisposableEffect(mapRuntime) { onDispose { if (runtime == null) mapRuntime.close() } }
-    val map = rememberMapState(runtime = mapRuntime, baseStyle = baseStyle, initialCameraPosition = initialCamera)
+    val map = rememberMapState(runtime = mapRuntime, baseStyle = baseStyle, initialCameraPosition = initialCamera) {
+        campusLandmarks.forEach { CampusLabel(it) }
+    }
     LaunchedEffect(map) {
         withContext(Dispatchers.Main.immediate) {
             launch(start = CoroutineStart.UNDISPATCHED) {
@@ -104,14 +106,14 @@ private val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421)
     }
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
-            if (observing) MaplibreMap(state = map, modifier = Modifier.fillMaxSize().testTag("map-surface"), viewportInsets = PaddingValues(top = topOverlayHeight, bottom = bottomOverlayHeight)) {
+            if (observing) MaplibreMap(state = map, modifier = Modifier.fillMaxSize().testTag("map-surface").semantics {
+                if (load.status == MapLoadStatus.READY && map.cameraPosition.zoom >= 17.0)
+                    contentDescription = campusLandmarks.joinToString(", ") { it.name.replace('\n', ' ') }
+            }, viewportInsets = PaddingValues(top = topOverlayHeight, bottom = bottomOverlayHeight)) {
                 Box(Modifier.fillMaxSize().padding(top = topOverlayHeight, bottom = bottomOverlayHeight).padding(8.dp)) {
                     DisappearingScaleBar(metersPerDp = { map.viewport?.metersPerDpAtCenter ?: 0.0 },
                         zoom = { map.cameraPosition.zoom }, modifier = Modifier.align(Alignment.TopStart))
                     DisappearingCompassButton(Modifier.align(Alignment.TopEnd).padding(top = 56.dp))
-                }
-                if (load.status == MapLoadStatus.READY && map.cameraPosition.zoom >= 17.0) campusLandmarks.forEach { landmark ->
-                    CampusLabel(landmark, Modifier.placedAt(landmark.position, alignment = Alignment.Center))
                 }
                 readings.filter { it.latitude != null && it.longitude != null }.forEach { reading ->
                     SamplePin(reading, Modifier.placedAt(Position(reading.longitude!!, reading.latitude!!), alignment = Alignment.BottomCenter)) {
