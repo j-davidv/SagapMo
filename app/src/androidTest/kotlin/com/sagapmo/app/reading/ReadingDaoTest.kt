@@ -26,11 +26,13 @@ class ReadingDaoTest {
         context.deleteDatabase("readings-test.db")
         context.openOrCreateDatabase("readings-test.db", Context.MODE_PRIVATE, null).use { old ->
             old.execSQL("CREATE TABLE readings (id TEXT NOT NULL PRIMARY KEY, capturedAtEpochMillis INTEGER NOT NULL, connectionType TEXT NOT NULL, rawSignalValue INTEGER NOT NULL, signalUnit TEXT NOT NULL, rating TEXT NOT NULL, signalAgeMillisAtCapture INTEGER, latitude REAL, longitude REAL, accuracyMetres REAL, locationAgeMillisAtCapture INTEGER, noLocationReason TEXT, locationManuallySet INTEGER NOT NULL DEFAULT 0, locationDescription TEXT NOT NULL DEFAULT '')")
-            old.execSQL("INSERT INTO readings (id,capturedAtEpochMillis,connectionType,rawSignalValue,signalUnit,rating,locationDescription) VALUES ('v3',1000,'WIFI',-65,'DBM','GOOD','Library')")
+            old.execSQL("INSERT INTO readings (id,capturedAtEpochMillis,connectionType,rawSignalValue,signalUnit,rating,noLocationReason,locationDescription) VALUES ('v3',1000,'WIFI',-65,'DBM','GOOD','PERMISSION_DENIED','Library')")
             old.version = 3
         }
         database = open()
         val migrated = requireNotNull(dao.getById("v3"))
+        validateReading(migrated)
+        assertEquals(NoLocationReason.PERMISSION_DENIED, migrated.noLocationReason)
         assertEquals("Library", migrated.locationDescription)
         assertNull(migrated.downloadMbps)
         assertNull(migrated.uploadMbps)
@@ -38,11 +40,12 @@ class ReadingDaoTest {
         assertNull(migrated.jitterMs)
         assertNull(migrated.speedTestStatus)
 
-        val speedReading = migrated.copy(downloadMbps = 45.5, uploadMbps = 12.3, latencyMs = 15.0, jitterMs = 2.1, speedTestStatus = com.sagapmo.app.speedtest.SpeedTestStatus.COMPLETED)
+        val speedReading = migrated.copy(id = "speed-reading", downloadMbps = 45.5, uploadMbps = 12.3, latencyMs = 15.0, jitterMs = 2.1, speedTestStatus = com.sagapmo.app.speedtest.SpeedTestStatus.COMPLETED)
         validateReading(speedReading)
         dao.save(speedReading)
         database.close(); database = open()
-        val reloaded = requireNotNull(dao.getById("v3"))
+        assertEquals(migrated, dao.getById("v3"))
+        val reloaded = requireNotNull(dao.getById(speedReading.id))
         assertEquals(45.5, reloaded.downloadMbps!!, 0.01)
         assertEquals(12.3, reloaded.uploadMbps!!, 0.01)
         assertEquals(15.0, reloaded.latencyMs!!, 0.01)

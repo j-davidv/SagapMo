@@ -136,7 +136,8 @@ class SagapMoAppTest {
         compose.waitUntil(5000) { compose.onAllNodes(hasText("Save location") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Save location").performClick()
         compose.waitUntil(5000) { dao.rows.value.single().locationManuallySet }
-        compose.onNodeWithText("Set manually").assertExists()
+        compose.onNodeWithTag("toggle-advanced-info").performScrollTo().performClick()
+        compose.onNodeWithText("Set manually").performScrollTo().assertIsDisplayed()
         compose.runOnIdle {
             val saved = dao.rows.value.single()
             assertEquals(original.rawSignalValue, saved.rawSignalValue)
@@ -287,10 +288,16 @@ class SagapMoAppTest {
     }
     @Test fun floatingControlsExposeSelectionSettingsAndBusyState() {
         dao.gate = CompletableDeferred(); start()
+        compose.runOnIdle { model.setIncludeSpeedTest(false) }
         compose.onNodeWithText("On this phone").assertDoesNotExist()
         compose.onNodeWithContentDescription("Readings").assertIsSelected()
         compose.onNodeWithContentDescription("Settings").performClick()
+        compose.onNodeWithTag("settings-dialog").assertIsDisplayed()
+        compose.runOnIdle { assertFalse(settingsOpened) }
+        compose.onNodeWithText("Open Android App Settings").performScrollTo().performClick()
         compose.runOnIdle { assertTrue(settingsOpened) }
+        compose.onNodeWithText("Done").performScrollTo().performClick()
+        compose.onNodeWithTag("settings-dialog").assertDoesNotExist()
         compose.onNodeWithContentDescription("Record reading").performClick()
         compose.waitUntil(5000) { model.uiState.value.capturePhase == CapturePhase.SAVING }
         compose.onNodeWithContentDescription("Recording…").assertIsNotEnabled()
@@ -325,7 +332,8 @@ class SagapMoAppTest {
         compose.onAllNodes(hasTestTag("reading-new") or hasTestTag("reading-old"))[0].assert(hasTestTag("reading-new"))
         compose.onNodeWithTag("reading-old").performClick()
         compose.onNode(hasText("-71 dBm") and hasAnyAncestor(hasTestTag("reading-details"))).assertIsDisplayed()
-        compose.onNodeWithText("13.78422, 121.07431").assertIsDisplayed()
+        compose.onNodeWithTag("toggle-advanced-info").performScrollTo().performClick()
+        compose.onNodeWithText("13.78422, 121.07431").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Signal age at capture").assertDoesNotExist()
         compose.onNodeWithText("Wi-Fi measurement age unavailable. Android does not provide a timestamp for this RSSI value.").assertDoesNotExist()
         compose.onNodeWithText("Show on map").performScrollTo().assertIsDisplayed()
