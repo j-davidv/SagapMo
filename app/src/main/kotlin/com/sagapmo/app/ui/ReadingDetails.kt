@@ -46,6 +46,9 @@ data class MetricInfo(val title: String, val description: String)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        // Keep the expanded anchor stable as the sheet consumes top insets during a drag.
+        modifier = Modifier.statusBarsPadding(),
+        contentWindowInsets = { WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal) },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface
