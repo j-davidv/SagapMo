@@ -22,7 +22,7 @@ import org.maplibre.spatialk.geojson.Position
 import kotlinx.coroutines.*
 import org.maplibre.compose.resource.MapResourceProvider
 
-private val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421), zoom = 17.0)
+internal val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421), zoom = 17.0)
 
 @Composable internal fun CampusMapScreen(readings: List<Reading>, focusedReadingId: String?,
     onOpenReading: (Reading) -> Unit, onViewReadings: () -> Unit,
@@ -47,9 +47,10 @@ private val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421)
     var lastFrameFull by remember { mutableStateOf(false) }
     val failedResources = remember { mutableStateListOf<String>() }
     val scope = rememberCoroutineScope()
-    val mapRuntime = remember(runtime, resourceProvider) {
+    val campusResources = rememberCampusMapResources()
+    val mapRuntime = remember(runtime, resourceProvider, campusResources) {
         runtime ?: createMapRuntime {
-            this.resourceProvider = ObservedMapResources(resourceProvider ?: AndroidSpriteResources) { url, failed ->
+            this.resourceProvider = ObservedMapResources(resourceProvider ?: campusResources) { url, failed ->
                 scope.launch(Dispatchers.Main.immediate) {
                     if (failed) {
                         if (url !in failedResources) failedResources += url
@@ -181,7 +182,14 @@ private val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421)
                         }
                     }
                 } }
-                MapLoadStatus.READY -> Box(Modifier.testTag("map-ready"))
+                MapLoadStatus.READY -> {
+                    Box(Modifier.testTag("map-ready"))
+                    campusMapNotice(baseStyle, map.cameraPosition)?.let { notice ->
+                        Surface(Modifier.align(Alignment.TopCenter).padding(top = topOverlayHeight + 72.dp, start = 16.dp, end = 16.dp), shape = RoundedCornerShape(6.dp)) {
+                            Text(notice, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
             }
         }
     }

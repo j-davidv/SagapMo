@@ -62,6 +62,7 @@ The app is intended for students at Batangas State University, Alangilan Campus.
 ### Map and locations
 
 - View readings with coordinates as selectable MapLibre pins.
+- Open the bundled Alangilan Campus map in 2D or 3D without a connection, including on first launch.
 - Open a pin to inspect its reading.
 - Retain valid, recent approximate coordinates and label the location as approximate.
 - Use **Set location** in Reading details to add or correct a pin manually. Manual changes preserve the reading's signal values and capture time and are labelled **Set manually**.
@@ -77,7 +78,8 @@ The app is intended for students at Batangas State University, Alangilan Campus.
 
 - Review saved readings, filters, descriptions, and details without internet access.
 - Keep readings across app restarts using Room.
-- Loading uncached basemap content and running speed tests require internet access.
+- The campus basemap, labels, icons, saved pins, and manual location picker work offline from the first launch. No map download is needed.
+- The bundled map covers Alangilan Campus and nearby streets; speed tests require internet access.
 
 ## How it works
 
@@ -112,7 +114,7 @@ To record mobile signal, turn Wi-Fi off in Android settings and wait for mobile 
 - Android Studio and an Android SDK with Android API 37 installed. The app compiles against API 37, targets API 36, and runs on API 31 or later.
 - Java 25 to run the pinned Gradle wrapper. The app's bytecode targets Java 17.
 - A physical Android phone for signal measurements, or an emulator for interface development. Hardware and Android API support affect the measurements available.
-- Internet access to download build dependencies, load basemap content, and run speed tests.
+- Internet access to download build dependencies and run speed tests. The campus map is included in the app.
 
 ### Open and configure the project
 
@@ -176,7 +178,7 @@ docs/                          # Design notes, specifications, and verification 
 
 - Readings, coordinates, and location descriptions are stored in the app's local Room database. There are no user accounts, cloud synchronization, or shared measurement collections.
 - The app requests location access to attach available coordinates. Approximate locations are identified, and readings without coordinates remain accessible in the list.
-- Map requests use external basemap services. Speed tests exchange traffic with Cloudflare endpoints and consume data on the active connection.
+- The default campus map loads from app assets without sending map requests to external services. Speed tests exchange traffic with Cloudflare endpoints and consume data on the active connection.
 - Android app backup is disabled. Clearing app data or uninstalling the app removes the saved collection. Export and recovery are not available.
 - Undo is temporary and does not survive closing the app.
 
@@ -186,8 +188,9 @@ docs/                          # Design notes, specifications, and verification 
 - Measurements reflect conditions at the time and place of capture. Device hardware, network conditions, and Android API restrictions can affect results.
 - Location accuracy may decrease indoors or near buildings. Approximate and manually assigned locations can affect pin placement; invalid or stale device coordinates are excluded.
 - Campus landmark coordinates are estimates pending a survey.
-- Saved records work offline, but uncached basemap content and speed tests need internet access.
-- Heatmaps, continuous background monitoring, cloud synchronization, shared readings, export, and downloaded map packs are outside the current scope.
+- Saved records and the bundled campus map work offline; speed tests need internet access.
+- Offline map coverage is limited to Alangilan Campus and nearby streets (longitude 121.055 to 121.095, latitude 13.765 to 13.805). It is a snapshot, updated with app releases rather than live map changes.
+- Heatmaps, continuous background monitoring, cloud synchronization, shared readings, export, and user-managed map downloads are outside the current scope.
 - Pending description saves continue when Reading details closes, but do not survive process termination. A failed capture save can be retried only while its captured candidate remains in the current process.
 
 ## Developer notes
@@ -197,3 +200,15 @@ The Android project is at the repository root. A fresh checkout does not need a 
 The `design/` browser prototype provides visual context and does not implement every native feature. Use the current Android source when older design or verification notes describe different behavior. Test readings and screenshot fixtures do not seed the production database.
 
 Rebuild and reinstall the APK after native UI changes to see them on a device.
+
+### Bundled campus map
+
+`app/src/main/assets/campus-map/` includes both map styles, vector tiles, label fonts, icons, source attribution, and licenses. The snapshot adds approximately 3.5 MiB of uncompressed assets. Tiles at source zooms 12–14 retain detailed building geometry when zoomed in further.
+
+Validate the checked-in bundle without network access:
+
+```powershell
+python tools/bundle_campus_map.py
+```
+
+To refresh the snapshot during development (requires internet), run `python tools/bundle_campus_map.py --refresh`, review the updated assets and manifest, then rebuild the app. This command does not run during app startup or normal builds.

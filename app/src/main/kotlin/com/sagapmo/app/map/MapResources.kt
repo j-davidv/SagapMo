@@ -1,17 +1,28 @@
 package com.sagapmo.app.map
 
-import java.net.HttpURLConnection
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import java.io.IOException
 import java.net.URI
-import kotlin.time.Instant
 import kotlinx.coroutines.*
 import org.maplibre.compose.resource.*
+import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.style.BaseStyle
 
-const val MAP_STYLE_2D_URL = "https://tiles.openfreemap.org/styles/bright"
-const val MAP_STYLE_3D_URL = "https://tiles.openfreemap.org/styles/liberty"
+const val MAP_STYLE_2D_URL = "sagapmo://campus/styles/bright.json"
+const val MAP_STYLE_3D_URL = "sagapmo://campus/styles/liberty.json"
 
 val DefaultMapStyle2D: BaseStyle = BaseStyle.Uri(MAP_STYLE_2D_URL)
 val MapStyle3D: BaseStyle = BaseStyle.Uri(MAP_STYLE_3D_URL)
+
+internal fun campusMapNotice(style: BaseStyle, camera: CameraPosition): String? {
+    if (style != DefaultMapStyle2D && style != MapStyle3D) return null
+    if (camera.center.longitude !in 121.055..121.095 || camera.center.latitude !in 13.765..13.805)
+        return "Outside the offline campus map. Use Return to campus overview."
+    if (camera.zoom < 12.0) return "Zoom in to see the offline campus map."
+    return null
+}
 
 internal class ObservedMapResources(private val delegate: MapResourceProvider,
     private val onResult: (String, Boolean) -> Unit) : MapResourceProvider {
@@ -24,26 +35,25 @@ internal class ObservedMapResources(private val delegate: MapResourceProvider,
     }
 }
 
-// Native can render a full frame after a sprite fails; observe these requests directly.
-internal object AndroidSpriteResources : MapResourceProvider {
-    override fun accepts(request: MapResourceRequest) = request.kind == MapResourceKind.SpriteJson || request.kind == MapResourceKind.SpriteImage
+@Composable internal fun rememberCampusMapResources(): MapResourceProvider {
+    val assets = LocalContext.current.applicationContext.assets
+    return remember(assets) { CampusMapResources { path -> assets.open(path).use { it.readBytes() } } }
+}
+
+internal class CampusMapResources(private val readAsset: (String) -> ByteArray) : MapResourceProvider {
+    override fun accepts(request: MapResourceRequest) = request.url.startsWith("sagapmo://campus/")
+
     override suspend fun load(request: MapResourceLoadRequest): MapResourceLoad = runInterruptible(Dispatchers.IO) {
-        val url = URI(request.url).toURL()
-        require(url.protocol == "https" || url.protocol == "http")
-        val connection = url.openConnection() as HttpURLConnection
         try {
-            connection.connectTimeout = 10_000
-            connection.readTimeout = 10_000
-            request.priorEtag?.let { connection.setRequestProperty("If-None-Match", it) }
-            request.priorModified?.let { connection.ifModifiedSince = it.toEpochMilliseconds() }
-            when (connection.responseCode) {
-                HttpURLConnection.HTTP_NOT_MODIFIED -> MapResourceLoad.NotModified()
-                in 200..299 -> MapResourceLoad.Bytes(connection.inputStream.use { it.readBytes() },
-                    etag = connection.getHeaderField("ETag"),
-                    modified = connection.lastModified.takeIf { it > 0 }?.let(Instant::fromEpochMilliseconds),
-                    expires = connection.expiration.takeIf { it > 0 }?.let(Instant::fromEpochMilliseconds))
-                else -> MapResourceLoad.Failed(MapResourceError.Server, "Sprite request returned HTTP ${connection.responseCode}")
-            }
-        } finally { connection.disconnect() }
+            val uri = URI.create(request.url)
+            require(uri.scheme == "sagapmo" && uri.host == "campus")
+            val path = uri.path.removePrefix("/")
+            require(path.isNotEmpty() && '\\' !in path && path.split('/').none { it == ".." || it == "." || it.isEmpty() })
+            MapResourceLoad.Bytes(readAsset("campus-map/$path"))
+        } catch (error: IOException) {
+            MapResourceLoad.Failed(MapResourceError.NotFound, "Bundled campus map resource is missing")
+        } catch (error: IllegalArgumentException) {
+            MapResourceLoad.Failed(MapResourceError.Other, "Invalid campus map resource URL")
+        }
     }
 }

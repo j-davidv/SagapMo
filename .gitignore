@@ -8,3 +8,5 @@ local.properties
 *.iml
 .impeccable/review/
 docs/superpowers/verification/screenshots/
+/tmp/
+__pycache__/

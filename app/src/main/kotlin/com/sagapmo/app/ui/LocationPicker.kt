@@ -11,10 +11,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.sagapmo.app.map.AndroidSpriteResources
+import com.sagapmo.app.map.rememberCampusMapResources
 import com.sagapmo.app.map.CampusLabel
+import com.sagapmo.app.map.CampusCamera
 import com.sagapmo.app.map.MapAttribution
 import com.sagapmo.app.map.campusLandmarks
+import com.sagapmo.app.map.campusMapNotice
 import com.sagapmo.app.reading.Reading
 import kotlinx.coroutines.launch
 import org.maplibre.compose.camera.CameraPosition
@@ -28,7 +30,8 @@ import com.sagapmo.app.map.DefaultMapStyle2D
 
 @Composable internal fun LocationPicker(reading: Reading, baseStyle: BaseStyle = DefaultMapStyle2D, onDismiss: () -> Unit,
     onSave: suspend (Double, Double) -> Boolean) {
-    val runtime = remember { createMapRuntime { resourceProvider = AndroidSpriteResources } }
+    val campusResources = rememberCampusMapResources()
+    val runtime = remember(campusResources) { createMapRuntime { resourceProvider = campusResources } }
     DisposableEffect(runtime) { onDispose { runtime.close() } }
     val map = rememberMapState(runtime = runtime, baseStyle = baseStyle,
         initialCameraPosition = CameraPosition(center = Position(reading.longitude ?: 121.07428, reading.latitude ?: 13.78421), zoom = 18.0)) {
@@ -46,7 +49,7 @@ import com.sagapmo.app.map.DefaultMapStyle2D
                     Text("Set location", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                     TextButton(onDismiss, enabled = !saving) { Text("Cancel") }
                 }
-                Text("Move the map to place the pin where this reading was taken.", Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
+                Text("Move the map to place the pin where this reading was taken. The offline map covers Alangilan Campus and nearby streets.", Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
                 Box(Modifier.fillMaxWidth().weight(1f).clipToBounds()) {
                     MaplibreMap(state = map, modifier = Modifier.semantics {
                         if (map.style.loadState == StyleLoadState.Ready && map.cameraPosition.zoom >= 17.0)
@@ -58,9 +61,14 @@ import com.sagapmo.app.map.DefaultMapStyle2D
                 }
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(String.format(Locale.US, "%.5f, %.5f", position.latitude, longitude), style = MaterialTheme.typography.bodyMedium)
+                    campusMapNotice(baseStyle, map.cameraPosition)?.let {
+                        Text(if (map.cameraPosition.zoom < 12.0) "Zoom in to see the offline campus map."
+                            else "Outside the offline campus map.", style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = { map.setCameraPosition(CampusCamera) }, enabled = !saving) { Text("Return to campus") }
+                    }
                     if (failed) Text("Couldn't save location. Try again.", color = MaterialTheme.colorScheme.error)
                     if (map.style.loadState != StyleLoadState.Ready && map.style.loadState !is StyleLoadState.Failed) Text("Loading map…", style = MaterialTheme.typography.bodySmall)
-                    if (map.style.loadState is StyleLoadState.Failed) Text("Map unavailable. Check your connection and reopen this editor.", color = MaterialTheme.colorScheme.error)
+                    if (map.style.loadState is StyleLoadState.Failed) Text("Campus map unavailable. Close and reopen this editor to try again.", color = MaterialTheme.colorScheme.error)
                     Button(onClick = { saving = true; failed = false; scope.launch {
                         if (onSave(position.latitude, longitude)) onDismiss() else { failed = true; saving = false }
                     } }, enabled = !saving && map.style.loadState == StyleLoadState.Ready, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
