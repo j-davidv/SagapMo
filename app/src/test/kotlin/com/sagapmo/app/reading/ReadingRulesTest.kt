@@ -5,6 +5,26 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ReadingRulesTest {
+    @Test fun assembledReadingKeepsMobileContextWithoutChangingSignal() {
+        val sample = SignalSample(ConnectionType.MOBILE, 3, SignalUnit.ANDROID_LEVEL,
+            Rating.GOOD, 1000, 5000, 100_000, mobileGeneration = MobileGeneration.FIVE_G)
+        val reading = assembleReading("5g", sample, LocationResult.Missing(NoLocationReason.LOCATION_DISABLED),
+            LocationAccess(true, true, false))
+        assertEquals(MobileGeneration.FIVE_G, reading.mobileGeneration)
+        assertEquals(3, reading.rawSignalValue)
+        assertEquals(Rating.GOOD, reading.rating)
+        validateReading(reading)
+        validateReading(reading.copy(mobileGeneration = null))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun wifiCannotHaveMobileContext() {
+        val sample = SignalSample(ConnectionType.WIFI, -65, SignalUnit.DBM, Rating.GOOD, null, 5000, 100_000)
+        val reading = assembleReading("wifi", sample, LocationResult.Missing(NoLocationReason.LOCATION_DISABLED),
+            LocationAccess(true, true, false))
+        validateReading(reading.copy(mobileGeneration = MobileGeneration.FOUR_G))
+    }
+
     @Test fun wifiBoundaries() {
         assertEquals(Rating.GOOD, rateWifi(-65))
         assertEquals(Rating.FAIR, rateWifi(-66))

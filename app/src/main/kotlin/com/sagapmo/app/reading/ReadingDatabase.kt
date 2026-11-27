@@ -5,10 +5,24 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Reading::class], version = 5, exportSchema = true)
+@Database(entities = [Reading::class], version = 7, exportSchema = true)
 abstract class ReadingDatabase : RoomDatabase() {
     abstract fun readings(): ReadingDao
     companion object {
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE readings ADD COLUMN cellular_carrierName TEXT DEFAULT NULL")
+                listOf("networkType", "lteRsrpDbm", "lteRsrqDb", "lteRssnrDb", "lteRssiDbm",
+                    "nrSsRsrpDbm", "nrSsRsrqDb", "nrSsSinrDb").forEach {
+                    db.execSQL("ALTER TABLE readings ADD COLUMN cellular_$it INTEGER DEFAULT NULL")
+                }
+            }
+        }
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE readings ADD COLUMN mobileGeneration TEXT DEFAULT NULL")
+            }
+        }
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE readings ADD COLUMN wifiConnectedAgeMillis INTEGER DEFAULT NULL")

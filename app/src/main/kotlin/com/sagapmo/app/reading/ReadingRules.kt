@@ -61,15 +61,18 @@ fun assembleReading(id: String, sample: SignalSample, location: LocationResult, 
     return Reading(id, sample.capturedAtEpochMillis, sample.connectionType, sample.rawSignalValue,
         sample.signalUnit, sample.rating, sample.signalAgeMillisAtCapture,
         eligible?.latitude, eligible?.longitude, eligible?.accuracyMetres,
-        eligible?.let { sample.capturedElapsedMillis - it.measuredElapsedMillis }, reason)
+        eligible?.let { sample.capturedElapsedMillis - it.measuredElapsedMillis }, reason,
+        mobileGeneration = sample.mobileGeneration, cellularDetails = sample.cellularDetails)
 }
 
 fun validateReading(reading: Reading) = with(reading) {
     require(locationDescription.length <= 200)
     require(id.isNotBlank() && capturedAtEpochMillis >= 0)
     if (connectionType == ConnectionType.WIFI) {
+        require(mobileGeneration == null && cellularDetails == null)
         require(signalUnit == SignalUnit.DBM && signalAgeMillisAtCapture == null && rateWifi(rawSignalValue) == rating)
     } else {
+        cellularDetails?.let { require(normalizeCellularDetails(it) == it) }
         require(signalUnit == SignalUnit.ANDROID_LEVEL && signalAgeMillisAtCapture != null &&
             signalAgeMillisAtCapture in 0..60_000 && rateMobile(rawSignalValue, 0, signalAgeMillisAtCapture) == rating)
     }

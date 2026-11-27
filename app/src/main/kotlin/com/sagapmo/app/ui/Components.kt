@@ -1,5 +1,6 @@
 package com.sagapmo.app.ui
 
+import android.telephony.TelephonyManager.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -57,6 +58,37 @@ enum class AppSymbol(val data: String) {
     Icon(vector, description, modifier.size(24.dp), tint)
 }
 fun ConnectionType.label() = if (this == ConnectionType.WIFI) "Wi-Fi" else "Mobile"
+fun MobileGeneration.label() = when (this) {
+    MobileGeneration.TWO_G -> "2G"
+    MobileGeneration.THREE_G -> "3G"
+    MobileGeneration.FOUR_G -> "4G"
+    MobileGeneration.FIVE_G -> "5G"
+}
+fun Reading.connectionLabel() = if (connectionType == ConnectionType.MOBILE && mobileGeneration != null)
+    "Mobile · ${mobileGeneration.label()}" else connectionType.label()
+@Suppress("DEPRECATION")
+fun Int?.radioTypeLabel() = when (this) {
+    NETWORK_TYPE_GPRS -> "GPRS"
+    NETWORK_TYPE_EDGE -> "EDGE"
+    NETWORK_TYPE_UMTS -> "UMTS"
+    NETWORK_TYPE_CDMA -> "CDMA"
+    NETWORK_TYPE_EVDO_0 -> "EVDO 0"
+    NETWORK_TYPE_EVDO_A -> "EVDO A"
+    NETWORK_TYPE_1xRTT -> "1xRTT"
+    NETWORK_TYPE_HSDPA -> "HSDPA"
+    NETWORK_TYPE_HSUPA -> "HSUPA"
+    NETWORK_TYPE_HSPA -> "HSPA"
+    NETWORK_TYPE_IDEN -> "iDEN"
+    NETWORK_TYPE_EVDO_B -> "EVDO B"
+    NETWORK_TYPE_LTE -> "LTE"
+    NETWORK_TYPE_EHRPD -> "eHRPD"
+    NETWORK_TYPE_HSPAP -> "HSPA+"
+    NETWORK_TYPE_GSM -> "GSM"
+    NETWORK_TYPE_TD_SCDMA -> "TD-SCDMA"
+    19 -> "LTE CA"
+    NETWORK_TYPE_NR -> "NR (5G)"
+    else -> "Unavailable"
+}
 fun ConnectionType.symbol() = if (this == ConnectionType.WIFI) AppSymbol.WIFI else AppSymbol.MOBILE
 fun Rating.label() = name.lowercase().replaceFirstChar { it.uppercase() }
 fun Reading.rawDisplay() = if (connectionType == ConnectionType.WIFI) "$rawSignalValue dBm" else "Level $rawSignalValue/4"

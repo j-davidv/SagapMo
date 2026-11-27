@@ -86,7 +86,7 @@ fun CaptureError.explanation() = when (this) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         AppIcon(AppSymbol.CHECK, tint = LocalRatingColors.current.good)
                         Column {
-                            Text("${reading.connectionType.label()} · ${reading.rating.label()}", style = MaterialTheme.typography.bodyLarge)
+                            Text("${reading.connectionLabel()} · ${reading.rating.label()}", style = MaterialTheme.typography.bodyLarge)
                             Text("${reading.rawDisplay()} · ${reading.shortTime().substringAfter(" · ")}")
                         }
                     }

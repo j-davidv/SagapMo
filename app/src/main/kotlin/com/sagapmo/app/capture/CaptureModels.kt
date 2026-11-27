@@ -15,6 +15,8 @@ data class SignalSample(
     val capturedAtEpochMillis: Long,
     val capturedElapsedMillis: Long,
     val connectionAgeMillis: Long? = null,
+    val mobileGeneration: MobileGeneration? = null,
+    val cellularDetails: CellularDetails? = null,
 )
 sealed interface SignalResult {
     data class Available(val sample: SignalSample) : SignalResult

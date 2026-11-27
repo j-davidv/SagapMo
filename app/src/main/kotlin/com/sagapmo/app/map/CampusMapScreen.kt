@@ -218,7 +218,7 @@ internal val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421
 ) {
     Box(modifier.offset(y = artwork.labelHeight).testTag("pin-${reading.id}")
         .size(artwork.width, maxOf(64.dp, artwork.height))
-        .semantics(mergeDescendants = true) { contentDescription = "${reading.connectionType.label()}, ${reading.rating.label()}, ${reading.rawDisplay()}, ${reading.shortTime()}" }
+        .semantics(mergeDescendants = true) { contentDescription = "${reading.connectionLabel()}, ${reading.rating.label()}, ${reading.rawDisplay()}, ${reading.shortTime()}" }
         .clickable(role = Role.Button, onClick = onClick), contentAlignment = Alignment.BottomCenter) {
         if (showArtwork) {
             Image(artwork.painter, contentDescription = null, modifier = Modifier.size(artwork.width, artwork.height))

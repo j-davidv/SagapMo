@@ -9,6 +9,7 @@ import android.os.SystemClock
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import com.sagapmo.app.reading.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -67,6 +68,8 @@ class AndroidSignalReader(context: Context) : SignalReader {
             val raw: Int
             val measured: Long?
             val unit: SignalUnit
+            var generation: MobileGeneration? = null
+            var cellularDetails: CellularDetails? = null
             if (before.connectionType == ConnectionType.WIFI) {
                 val network = connectivity.activeNetwork
                 val info = network?.let { connectivity.getNetworkCapabilities(it)?.transportInfo } as? WifiInfo
@@ -75,8 +78,12 @@ class AndroidSignalReader(context: Context) : SignalReader {
                 measured = null
                 unit = SignalUnit.DBM
             } else {
-                val strength = telephony.createForSubscriptionId(requireNotNull(before.dataSubscriptionId)).signalStrength
-                    ?: return@withContext SignalResult.Failed(CaptureError.SIGNAL_UNAVAILABLE)
+                val subscriptionTelephony = telephony.createForSubscriptionId(requireNotNull(before.dataSubscriptionId))
+                val (strength, displayInfo) = subscriptionTelephony.readMobileSignal()
+                if (strength == null) return@withContext SignalResult.Failed(CaptureError.SIGNAL_UNAVAILABLE)
+                generation = displayInfo?.let { mobileGeneration(it.networkType, it.overrideNetworkType) }
+                val carrierName = try { subscriptionTelephony.networkOperatorName } catch (_: RuntimeException) { null }
+                cellularDetails = strength.cellularDetails(carrierName, displayInfo?.networkType)
                 raw = strength.level
                 measured = strength.timestampMillis
                 unit = SignalUnit.ANDROID_LEVEL
@@ -93,7 +100,9 @@ class AndroidSignalReader(context: Context) : SignalReader {
                 }
                 SignalResult.Failed(error)
             } else SignalResult.Available(SignalSample(before.connectionType, raw, unit, rating,
-                measured?.let { now - it }, capturedAt, now, connAge))
+                measured?.let { now - it }, capturedAt, now, connAge, generation, cellularDetails))
+        } catch (error: CancellationException) {
+            throw error
         } catch (_: SecurityException) {
             SignalResult.Failed(CaptureError.SIGNAL_PERMISSION_DENIED)
         } catch (_: RuntimeException) {

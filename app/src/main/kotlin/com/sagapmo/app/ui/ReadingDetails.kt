@@ -66,8 +66,13 @@ data class MetricInfo(val title: String, val description: String)
                     Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) { AppIcon(reading.connectionType.symbol()) }
                 }
                 Column {
-                    Text(reading.connectionType.label(), style = MaterialTheme.typography.bodyLarge)
-                    Text("Saved sample", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(reading.connectionLabel(), style = MaterialTheme.typography.bodyLarge)
+                    val subtitle = when {
+                        reading.connectionType != ConnectionType.MOBILE -> "Saved sample"
+                        reading.mobileGeneration == null -> "Network generation unavailable"
+                        else -> "Android network label at capture"
+                    }
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -85,7 +90,7 @@ data class MetricInfo(val title: String, val description: String)
                             description = if (isWifi) {
                                 "• dBm (Decibel-milliwatts): Measures wireless signal strength. Values are negative; closer to 0 is stronger (e.g. -50 dBm is good, -85 dBm is weak).\n\n• Mbps (Megabits per second): Speed of data transmission. Higher numbers mean faster file transfers and web browsing."
                             } else {
-                                "• Signal Level (0-4): Android standard cellular signal bars. Level 4 indicates maximum reception.\n\n• Mbps (Megabits per second): Speed of data transmission. Higher numbers mean faster file transfers and web browsing."
+                                "• Signal Level (0-4): Android standard cellular signal bars. Level 4 indicates maximum reception.\n\n• Mbps (Megabits per second): Speed of data transmission. Higher numbers mean faster file transfers and web browsing.\n\n• 2G/3G/4G/5G: Android's network label at capture, based on carrier policy. A 5G label does not guarantee an active 5G radio connection or a particular speed."
                             }
                         )
                     },
@@ -100,6 +105,16 @@ data class MetricInfo(val title: String, val description: String)
                 Text(reading.fullTime(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 val offset = Instant.ofEpochMilli(reading.capturedAtEpochMillis).atZone(ZoneId.systemDefault()).offset.id.let { if (it == "Z") "+00:00" else it }
                 Text("Local time · UTC$offset", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            if (reading.connectionType == ConnectionType.MOBILE) {
+                Column {
+                    DetailRow("Carrier", reading.cellularDetails?.carrierName ?: "Unavailable")
+                    DetailRow("Radio type", reading.cellularDetails?.networkType.radioTypeLabel(), onInfoClick = {
+                        activeMetricInfo = MetricInfo("Radio type",
+                            "The base radio type reported for the active data SIM. LTE can appear alongside a 5G display label. Carrier is the currently registered network, which can differ from the SIM provider when roaming.")
+                    })
+                }
             }
 
             // Basic speed metrics (Always visible when available)
@@ -142,7 +157,7 @@ data class MetricInfo(val title: String, val description: String)
             }
 
             // Advanced Information collapsible section
-            val hasAdvancedInfo = reading.latencyMs != null || reading.jitterMs != null || reading.latitude != null || reading.wifiConnectedAgeMillis != null
+            val hasAdvancedInfo = reading.connectionType == ConnectionType.MOBILE || reading.latencyMs != null || reading.jitterMs != null || reading.latitude != null || reading.wifiConnectedAgeMillis != null
             if (hasAdvancedInfo) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
@@ -179,6 +194,35 @@ data class MetricInfo(val title: String, val description: String)
                             exit = fadeOut() + shrinkVertically()
                         ) {
                             Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)) {
+                                if (reading.connectionType == ConnectionType.MOBILE) {
+                                    val cellular = reading.cellularDetails
+                                    DetailRow("Signal age at capture", reading.signalAgeMillisAtCapture?.let { "${it / 1000.0} seconds" } ?: "Unavailable", onInfoClick = {
+                                        activeMetricInfo = MetricInfo("Signal age at capture",
+                                            "Age of the modem's signal report when this reading was saved. Smaller values mean a newer measurement. Android controls when the modem updates its report. This saved age stays the same when you reopen the reading.")
+                                    })
+                                    listOf(
+                                        Triple(MetricInfo("LTE RSRP",
+                                            "Reference Signal Received Power. Measures the strength of the LTE reference signal in dBm. Less negative values mean a stronger signal: -90 dBm is stronger than -110 dBm. This measures radio signal power rather than download speed."), cellular?.lteRsrpDbm, "dBm"),
+                                        Triple(MetricInfo("LTE RSRQ",
+                                            "Reference Signal Received Quality. Compares the LTE reference signal with total received power, in dB. Higher values generally mean better quality: -8 dB is higher than -16 dB. Interference and network traffic can affect this measurement."), cellular?.lteRsrqDb, "dB"),
+                                        Triple(MetricInfo("LTE RSSNR",
+                                            "Reference Signal Signal-to-Noise Ratio, reported by Android in dB. Compares the LTE reference signal with background noise. Higher values generally mean a clearer signal. Negative values mean noise is stronger relative to the measured signal."), cellular?.lteRssnrDb, "dB"),
+                                        Triple(MetricInfo("LTE RSSI",
+                                            "Received Signal Strength Indicator. Total received LTE power, including useful signal, other transmissions, and noise, in dBm. Less negative values mean more received power. Higher RSSI alone does not guarantee better reception because interference also contributes power."), cellular?.lteRssiDbm, "dBm"),
+                                        Triple(MetricInfo("5G SS-RSRP",
+                                            "Synchronization Signal Reference Signal Received Power. Measures 5G NR synchronization reference signal strength in dBm. Less negative values mean a stronger signal. A 4G-only sample normally has no reported value here; phones may also omit it while displaying a 5G label."), cellular?.nrSsRsrpDbm, "dBm"),
+                                        Triple(MetricInfo("5G SS-RSRQ",
+                                            "Synchronization Signal Reference Signal Received Quality. Measures 5G NR synchronization signal quality relative to total received power, in dB. Higher values generally mean better quality. A phone can report LTE quality while leaving this 5G measurement unavailable."), cellular?.nrSsRsrqDb, "dB"),
+                                        Triple(MetricInfo("5G SS-SINR",
+                                            "Synchronization Signal-to-Interference-plus-Noise Ratio. Compares the 5G NR synchronization signal with interference and noise, in dB. Higher values generally mean a clearer signal. Zero means equal signal and interference-plus-noise power; negative values mean interference and noise are stronger."), cellular?.nrSsSinrDb, "dB"),
+                                    ).forEach { (info, value, unit) ->
+                                        DetailRow(info.title, value?.let { "$it $unit" } ?: "Unavailable", onInfoClick = {
+                                            activeMetricInfo = info.copy(description = "${info.description}\n\nUnavailable means Android did not report a usable value for this saved reading.")
+                                        })
+                                    }
+                                    Text("RSRP measures signal power; RSRQ measures quality. LTE RSSNR is Android's signal-to-noise ratio; 5G SS-SINR includes interference. LTE and 5G values remain separate. Unavailable means the phone did not report a usable value.",
+                                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                                 reading.latencyMs?.let {
                                     DetailRow(
                                         label = "Network Latency",
@@ -286,7 +330,7 @@ private fun MetricInfoDialog(info: MetricInfo, onDismiss: () -> Unit) {
             modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()).padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Row(
@@ -351,7 +395,7 @@ private fun MetricInfoDialog(info: MetricInfo, onDismiss: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.weight(1f)
         ) {
-            Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(label, modifier = Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (onInfoClick != null) {
                 IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
                     AppIcon(AppSymbol.INFO, description = "About $label", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)

@@ -27,7 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
     pendingDeletion?.let { reading ->
         AlertDialog(onDismissRequest = { pendingDeletion = null },
             title = { Text("Delete reading?") },
-            text = { Text("Delete this ${reading.connectionType.label()} reading from ${reading.shortTime()}?") },
+            text = { Text("Delete this ${reading.connectionLabel()} reading from ${reading.shortTime()}?") },
             confirmButton = { TextButton({ pendingDeletion = null; onDelete(reading) }) {
                 AppIcon(AppSymbol.DELETE, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
@@ -102,7 +102,7 @@ import androidx.compose.ui.text.style.TextOverflow
                     Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) { AppIcon(reading.connectionType.symbol()) }
                 }
                 Column(Modifier.weight(1f)) {
-                    Text(reading.connectionType.label(), style = MaterialTheme.typography.bodyLarge)
+                    Text(reading.connectionLabel(), style = MaterialTheme.typography.bodyLarge)
                     Text(reading.shortTime(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

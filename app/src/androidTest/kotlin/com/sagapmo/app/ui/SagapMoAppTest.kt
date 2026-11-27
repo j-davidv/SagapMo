@@ -24,6 +24,31 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 
 class SagapMoAppTest {
+    @Test fun capturedMobileGenerationAppearsInResultListAndDetails() {
+        sample = sample.copy(mobileGeneration = MobileGeneration.FIVE_G)
+        start()
+        compose.runOnIdle { model.setIncludeSpeedTest(false) }
+        compose.onNodeWithContentDescription("Record reading").performClick()
+        compose.waitUntil(5000) { model.uiState.value.capturePhase == CapturePhase.SAVED }
+        compose.onNodeWithText("Mobile · 5G · Good").assertIsDisplayed()
+        compose.onNodeWithText("Show saved reading").performScrollTo().performClick()
+        compose.waitUntil(5000) { compose.onAllNodesWithTag("reading-details").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNode(hasText("Mobile · 5G") and hasAnyAncestor(hasTestTag("reading-details"))).assertIsDisplayed()
+        compose.onNodeWithText("Android network label at capture").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Close reading details").performClick()
+        compose.onNodeWithTag("reading-${dao.rows.value.single().id}")
+            .assert(hasText("Mobile · 5G"))
+        compose.runOnIdle { assertEquals(MobileGeneration.FIVE_G, dao.rows.value.single().mobileGeneration) }
+    }
+
+    @Test fun legacyMobileReadingDoesNotInventNetworkContext() {
+        start(listOf(mobileReading()))
+        compose.onNodeWithTag("reading-test-mobile").performClick()
+        compose.onNodeWithText("Network generation unavailable").assertIsDisplayed()
+        compose.onNodeWithText("Mobile · 4G").assertDoesNotExist()
+        compose.onNodeWithText("Mobile · 5G").assertDoesNotExist()
+    }
+
     @Test fun locationProgressAndOutcomeStayClearThroughSpeedTest() {
         val locationGate = CompletableDeferred<Unit>()
         val speedGate = CompletableDeferred<Unit>()

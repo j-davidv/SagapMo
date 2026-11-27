@@ -3,11 +3,14 @@ package com.sagapmo.app.reading
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.ColumnInfo
+import androidx.room.Embedded
 
 import com.sagapmo.app.speedtest.SpeedTestStatus
 
 enum class ConnectionType { WIFI, MOBILE }
 enum class SignalUnit { DBM, ANDROID_LEVEL }
+
+enum class MobileGeneration { TWO_G, THREE_G, FOUR_G, FIVE_G }
 enum class Rating { GOOD, FAIR, POOR }
 enum class NoLocationReason {
     PERMISSION_DENIED, APPROXIMATE_ONLY, LOCATION_DISABLED, LOCATION_UNAVAILABLE,
@@ -36,4 +39,6 @@ data class Reading(
     val jitterMs: Double? = null,
     val speedTestStatus: SpeedTestStatus? = null,
     val wifiConnectedAgeMillis: Long? = null,
+    val mobileGeneration: MobileGeneration? = null,
+    @Embedded(prefix = "cellular_") val cellularDetails: CellularDetails? = null,
 )

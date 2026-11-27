@@ -48,7 +48,9 @@ The app is intended for students at Batangas State University, Alangilan Campus.
 ### Signal recording
 
 - Record the active default Wi-Fi or mobile connection on demand.
-- Save the signal value in dBm, its rating, and the capture time.
+- Save Wi-Fi signal in dBm or mobile signal as Android's 0–4 level, its rating, and the capture time.
+- Include Android's reported 2G/3G/4G/5G label in mobile readings when available. Existing readings retain unknown network context.
+- Save the serving carrier and radio type, LTE RSRP/RSRQ/RSSNR/RSSI, and 5G SS-RSRP/SS-RSRQ/SS-SINR when Android reports them. Detailed metrics appear under Advanced Information in Reading details.
 - Keep a valid signal reading even when location information is unavailable.
 - Retry a failed save without taking another measurement while the captured reading remains available in the current process.
 
@@ -186,6 +188,8 @@ docs/                          # Design notes, specifications, and verification 
 
 - The project focuses on individual outdoor samples within Alangilan Campus. It does not establish continuous or campus-wide coverage, and areas without readings remain unsampled.
 - Measurements reflect conditions at the time and place of capture. Device hardware, network conditions, and Android API restrictions can affect results.
+- Mobile generation follows Android's carrier display policy, including 5G labels on LTE-based networks. It does not prove an active 5G radio connection or guarantee speed. Missing network context does not prevent signal recording.
+- Cellular capture uses a bounded signal-strength callback with a cached-signal fallback and the existing timestamp check. LTE and 5G measurements are stored separately; unsupported, unreported, or invalid metrics remain unavailable. Carrier names identify the registered network and may differ from the SIM provider when roaming.
 - Location accuracy may decrease indoors or near buildings. Approximate and manually assigned locations can affect pin placement; invalid or stale device coordinates are excluded.
 - Campus landmark coordinates are estimates pending a survey.
 - Saved records and the bundled campus map work offline; speed tests need internet access.

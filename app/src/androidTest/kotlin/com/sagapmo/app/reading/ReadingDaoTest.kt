@@ -17,10 +17,53 @@ class ReadingDaoTest {
     private lateinit var database: ReadingDatabase
     private val dao get() = database.readings()
     private fun open() = Room.databaseBuilder(context, ReadingDatabase::class.java, "readings-test.db")
-        .addMigrations(ReadingDatabase.MIGRATION_1_2, ReadingDatabase.MIGRATION_2_3, ReadingDatabase.MIGRATION_3_4, ReadingDatabase.MIGRATION_4_5)
+        .addMigrations(ReadingDatabase.MIGRATION_1_2, ReadingDatabase.MIGRATION_2_3, ReadingDatabase.MIGRATION_3_4, ReadingDatabase.MIGRATION_4_5, ReadingDatabase.MIGRATION_5_6, ReadingDatabase.MIGRATION_6_7)
         .build()
     @Before fun setUp() { context.deleteDatabase("readings-test.db"); database = open() }
     @After fun tearDown() { database.close(); context.deleteDatabase("readings-test.db") }
+    @Test fun versionSixMigrationKeepsContextAndCellularMetricsPersistAcrossReopen() = runBlocking {
+        database.close(); context.deleteDatabase("readings-test.db")
+        context.openOrCreateDatabase("readings-test.db", Context.MODE_PRIVATE, null).use { old ->
+            old.execSQL("CREATE TABLE readings (id TEXT NOT NULL PRIMARY KEY, capturedAtEpochMillis INTEGER NOT NULL, connectionType TEXT NOT NULL, rawSignalValue INTEGER NOT NULL, signalUnit TEXT NOT NULL, rating TEXT NOT NULL, signalAgeMillisAtCapture INTEGER, latitude REAL, longitude REAL, accuracyMetres REAL, locationAgeMillisAtCapture INTEGER, noLocationReason TEXT, locationManuallySet INTEGER NOT NULL DEFAULT 0, locationDescription TEXT NOT NULL DEFAULT '', downloadMbps REAL, uploadMbps REAL, latencyMs REAL, jitterMs REAL, speedTestStatus TEXT, wifiConnectedAgeMillis INTEGER, mobileGeneration TEXT)")
+            old.execSQL("INSERT INTO readings (id,capturedAtEpochMillis,connectionType,rawSignalValue,signalUnit,rating,signalAgeMillisAtCapture,noLocationReason,mobileGeneration,locationDescription) VALUES ('v6',1000,'MOBILE',3,'ANDROID_LEVEL','GOOD',1000,'PERMISSION_DENIED','FIVE_G','Library')")
+            old.version = 6
+        }
+        database = open()
+        val migrated = requireNotNull(dao.getById("v6"))
+        assertNull(migrated.cellularDetails)
+        assertEquals(MobileGeneration.FIVE_G, migrated.mobileGeneration)
+        assertEquals("Library", migrated.locationDescription)
+        val detailed = migrated.copy(id = "detailed", cellularDetails = CellularDetails(
+            "Smart", 13, -100, -12, 0, -75, -95, -10, 15))
+        val partial = migrated.copy(id = "partial", cellularDetails = CellularDetails(carrierName = "Globe"))
+        dao.save(detailed); dao.save(partial)
+        database.close(); database = open()
+        assertEquals(migrated, dao.getById("v6"))
+        assertEquals(detailed, dao.getById(detailed.id))
+        assertEquals(partial, dao.getById(partial.id))
+    }
+
+    @Test fun versionFiveMigrationPreservesUnknownContextAndNewGenerationsSurviveReopen() = runBlocking {
+        database.close()
+        context.deleteDatabase("readings-test.db")
+        context.openOrCreateDatabase("readings-test.db", Context.MODE_PRIVATE, null).use { old ->
+            old.execSQL("CREATE TABLE readings (id TEXT NOT NULL PRIMARY KEY, capturedAtEpochMillis INTEGER NOT NULL, connectionType TEXT NOT NULL, rawSignalValue INTEGER NOT NULL, signalUnit TEXT NOT NULL, rating TEXT NOT NULL, signalAgeMillisAtCapture INTEGER, latitude REAL, longitude REAL, accuracyMetres REAL, locationAgeMillisAtCapture INTEGER, noLocationReason TEXT, locationManuallySet INTEGER NOT NULL DEFAULT 0, locationDescription TEXT NOT NULL DEFAULT '', downloadMbps REAL, uploadMbps REAL, latencyMs REAL, jitterMs REAL, speedTestStatus TEXT, wifiConnectedAgeMillis INTEGER)")
+            old.execSQL("INSERT INTO readings (id,capturedAtEpochMillis,connectionType,rawSignalValue,signalUnit,rating,signalAgeMillisAtCapture,noLocationReason,locationDescription,downloadMbps) VALUES ('v5',1000,'MOBILE',3,'ANDROID_LEVEL','GOOD',1000,'PERMISSION_DENIED','Library',45.5)")
+            old.version = 5
+        }
+        database = open()
+        val migrated = requireNotNull(dao.getById("v5"))
+        assertNull(migrated.mobileGeneration)
+        assertEquals("Library", migrated.locationDescription)
+        assertEquals(45.5, migrated.downloadMbps!!, 0.0)
+        validateReading(migrated)
+        val readings = MobileGeneration.entries.map { migrated.copy(id = it.name, mobileGeneration = it) }
+        readings.forEach { dao.save(it) }
+        database.close(); database = open()
+        assertEquals(migrated, dao.getById("v5"))
+        readings.forEach { assertEquals(it, dao.getById(it.id)) }
+    }
+
     @Test fun versionThreeMigrationPreservesReadingsAndAddsSpeedTestColumns() = runBlocking {
         database.close()
         context.deleteDatabase("readings-test.db")

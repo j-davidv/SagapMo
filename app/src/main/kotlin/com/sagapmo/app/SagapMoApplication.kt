@@ -11,7 +11,9 @@ class SagapMoApplication : Application() {
                 ReadingDatabase.MIGRATION_1_2,
                 ReadingDatabase.MIGRATION_2_3,
                 ReadingDatabase.MIGRATION_3_4,
-                ReadingDatabase.MIGRATION_4_5
+                ReadingDatabase.MIGRATION_4_5,
+                ReadingDatabase.MIGRATION_5_6,
+                ReadingDatabase.MIGRATION_6_7
             )
             .build()
     }
