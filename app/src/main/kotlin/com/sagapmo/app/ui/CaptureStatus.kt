@@ -28,14 +28,15 @@ fun CaptureError.explanation() = when (this) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun CaptureStatus(state: AppUiState, model: SagapMoViewModel, onRecord: () -> Unit,
-    onRequestPermission: () -> Unit, onOpenSettings: () -> Unit) {
+    onRequestPermission: () -> Unit, onOpenSettings: () -> Unit, onOpenLocationSettings: () -> Unit = {}) {
     val phase = state.capturePhase
-    val dismiss = { if (phase == CapturePhase.AWAITING_PERMISSION) model.cancelCapture() else model.dismissCapture() }
+    val dismiss = { if (phase in setOf(CapturePhase.AWAITING_LOCATION_SERVICES, CapturePhase.AWAITING_PERMISSION)) model.cancelCapture() else model.dismissCapture() }
     ModalBottomSheet(onDismissRequest = dismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), containerColor = MaterialTheme.colorScheme.surface) {
         ProvideTextStyle(MaterialTheme.typography.bodyMedium) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp, 0.dp, 24.dp, 26.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             val title = when (phase) {
+                CapturePhase.AWAITING_LOCATION_SERVICES -> "Location is off"
                 CapturePhase.AWAITING_PERMISSION -> "Add a pin to your reading"
                 CapturePhase.CHECKING_CONNECTION -> "Checking connection"
                 CapturePhase.LOCATING -> "Getting location"
@@ -58,6 +59,12 @@ fun CaptureError.explanation() = when (this) {
                 SheetHeading(title, "Close recording status", dismiss, closable = phase != CapturePhase.SAVING)
             }
             when (phase) {
+                CapturePhase.AWAITING_LOCATION_SERVICES -> {
+                    Text("Turn on your phone's location to add a map pin to this reading.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    InfoBox("You can continue without location", "The connection can still be recorded if signal access is available, but it won't have a map pin. You can set its location manually later.")
+                    PrimaryAction("Turn on location", onOpenLocationSettings)
+                    TextButton(model::continueWithoutLocation, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Continue without location") }
+                }
                 CapturePhase.AWAITING_PERMISSION -> {
                     Text("Precise location helps place your outdoor sample on the campus map.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     InfoBox("You can still save without location", "A valid signal reading stays in your list, even if you skip location or Android cannot get a usable fix.")

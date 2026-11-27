@@ -29,19 +29,20 @@ internal val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421
     runtime: MapRuntime? = null,
     baseStyle: BaseStyle = DefaultMapStyle2D,
     emptyTitle: String? = null, onShowAll: (() -> Unit)? = null, resourceProvider: MapResourceProvider? = null,
-    topOverlayHeight: Dp = 0.dp, bottomOverlayHeight: Dp = 0.dp) {
+    topOverlayHeight: Dp = 0.dp, bottomOverlayHeight: Dp = 0.dp, networkRecoveryCount: Int = 0) {
     var attempt by remember { mutableIntStateOf(1) }
     var camera by remember { mutableStateOf(CampusCamera) }
     key(attempt) {
         MapAttempt(readings, focusedReadingId, onOpenReading, onViewReadings, runtime, baseStyle,
-            attempt, camera, { camera = it; attempt++ }, emptyTitle, onShowAll, resourceProvider, topOverlayHeight, bottomOverlayHeight)
+            attempt, camera, { camera = it; attempt++ }, emptyTitle, onShowAll, resourceProvider, topOverlayHeight, bottomOverlayHeight, networkRecoveryCount)
     }
 }
 
 @Composable private fun MapAttempt(readings: List<Reading>, focusedReadingId: String?, onOpenReading: (Reading) -> Unit,
     onViewReadings: () -> Unit, runtime: MapRuntime?, baseStyle: BaseStyle, attempt: Int,
-    initialCamera: CameraPosition, onRetry: (CameraPosition) -> Unit, emptyTitle: String?, onShowAll: (() -> Unit)?, resourceProvider: MapResourceProvider?, topOverlayHeight: Dp, bottomOverlayHeight: Dp) {
+    initialCamera: CameraPosition, onRetry: (CameraPosition) -> Unit, emptyTitle: String?, onShowAll: (() -> Unit)?, resourceProvider: MapResourceProvider?, topOverlayHeight: Dp, bottomOverlayHeight: Dp, networkRecoveryCount: Int) {
     var load by remember { mutableStateOf(MapLoadState(attempt, MapLoadStatus.LOADING)) }
+    var handledRecoveryCount by remember { mutableIntStateOf(networkRecoveryCount) }
     var errorDismissed by remember { mutableStateOf(false) }
     var observing by remember { mutableStateOf(false) }
     var lastFrameFull by remember { mutableStateOf(false) }
@@ -78,6 +79,12 @@ internal val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421
             }
         }
     }
+    LaunchedEffect(baseStyle) {
+        load = MapLoadState(attempt, MapLoadStatus.LOADING)
+        lastFrameFull = false
+        failedResources.clear()
+        errorDismissed = false
+    }
     LaunchedEffect(map) {
         withContext(Dispatchers.Main.immediate) {
             launch(start = CoroutineStart.UNDISPATCHED) {
@@ -105,11 +112,20 @@ internal val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421
             else if (style == StyleLoadState.Ready && fullFrame && resourcesReady) load = nextMapLoadState(load, MapLoadEvent.FULL_FRAME, attempt)
         }
     }
-    LaunchedEffect(load.status) {
+    LaunchedEffect(baseStyle, load.status) {
         if (load.status == MapLoadStatus.LOADING) {
             withContext(Dispatchers.Main.immediate) {
                 delay(15_000)
                 load = nextMapLoadState(load, MapLoadEvent.DEADLINE, attempt)
+            }
+        }
+    }
+    LaunchedEffect(networkRecoveryCount, load.status) {
+        if (networkRecoveryCount != handledRecoveryCount) {
+            when (load.status) {
+                MapLoadStatus.FAILED -> onRetry(map.cameraPosition)
+                MapLoadStatus.READY -> handledRecoveryCount = networkRecoveryCount
+                MapLoadStatus.LOADING -> Unit
             }
         }
     }

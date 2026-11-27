@@ -30,10 +30,10 @@ import org.maplibre.compose.style.BaseStyle
 
 @Composable fun SagapMoApp(viewModel: SagapMoViewModel, onRecord: () -> Unit = { viewModel.record(false) },
     onRequestPermission: () -> Unit = {}, onOpenSettings: () -> Unit = {},
-    baseStyle: BaseStyle? = null) {
+    baseStyle: BaseStyle? = null, onOpenLocationSettings: () -> Unit = {}) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val activeBaseStyle = baseStyle ?: remember(state.use3dMap) {
-        if (state.use3dMap) com.sagapmo.app.map.MapStyle3D else com.sagapmo.app.map.DefaultMapStyle2D
+    val activeBaseStyle = baseStyle ?: remember(state.use3dMap, state.internetAvailable) {
+        com.sagapmo.app.map.campusMapStyle(state.use3dMap, state.internetAvailable)
     }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -76,6 +76,7 @@ import org.maplibre.compose.style.BaseStyle
                                 { viewModel.setDestination(Destination.READINGS) },
                                 bottomOverlayHeight = if (floatingMap) padding.calculateBottomPadding() else 0.dp,
                                 baseStyle = activeBaseStyle,
+                                networkRecoveryCount = state.networkRecoveryCount,
                                 emptyTitle = if (state.readingsState is ReadingsState.Loaded && state.visibleReadings.isEmpty())
                                     if (state.allReadings.isEmpty()) "No readings yet" else "No ${state.filter?.label()} readings" else null,
                                 onShowAll = if (state.allReadings.isNotEmpty()) ({ viewModel.setFilter(null) }) else null)
@@ -98,7 +99,8 @@ import org.maplibre.compose.style.BaseStyle
         alwaysCollapseAdvanced = state.alwaysCollapseAdvancedInfo) }
     editingLocation?.let { reading -> LocationPicker(reading, activeBaseStyle, { editingLocation = null },
         onSave = { latitude, longitude -> viewModel.setManualLocation(reading, latitude, longitude) }) }
-    if (state.captureVisible && !state.permissionLaunched && state.selectedReading == null) CaptureStatus(state, viewModel, onRecord, onRequestPermission, onOpenSettings)
+    if (state.captureVisible && !state.permissionLaunched && !state.locationSettingsLaunched && state.selectedReading == null)
+        CaptureStatus(state, viewModel, onRecord, onRequestPermission, onOpenSettings, onOpenLocationSettings)
     if (state.settingsVisible) {
         SettingsDialog(
             state = state,

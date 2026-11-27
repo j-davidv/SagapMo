@@ -49,7 +49,10 @@ import com.sagapmo.app.map.DefaultMapStyle2D
                     Text("Set location", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                     TextButton(onDismiss, enabled = !saving) { Text("Cancel") }
                 }
-                Text("Move the map to place the pin where this reading was taken. The offline map covers Alangilan Campus and nearby streets.", Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
+                Text("Move the map to place the pin where this reading was taken." +
+                    if (baseStyle == DefaultMapStyle2D || baseStyle == com.sagapmo.app.map.MapStyle3D)
+                        " The offline map covers Alangilan Campus and nearby streets." else "",
+                    Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
                 Box(Modifier.fillMaxWidth().weight(1f).clipToBounds()) {
                     MaplibreMap(state = map, modifier = Modifier.semantics {
                         if (map.style.loadState == StyleLoadState.Ready && map.cameraPosition.zoom >= 17.0)

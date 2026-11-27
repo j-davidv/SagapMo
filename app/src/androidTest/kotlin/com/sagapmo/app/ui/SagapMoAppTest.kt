@@ -24,6 +24,56 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 
 class SagapMoAppTest {
+    @Test fun locationOffOffersAChoiceBeforeRecording() {
+        locationServicesEnabled = false
+        start()
+        compose.runOnIdle { model.setIncludeSpeedTest(false) }
+        compose.onNodeWithContentDescription("Record reading").performClick()
+        compose.onNodeWithText("Location is off").assertIsDisplayed()
+        compose.onNodeWithText("Turn on location").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Continue without location").performScrollTo().assertIsDisplayed()
+        compose.runOnIdle { assertTrue(dao.rows.value.isEmpty()) }
+        compose.onNodeWithText("Continue without location").performScrollTo().performClick()
+        compose.waitUntil(5000) { model.uiState.value.capturePhase == CapturePhase.SAVED }
+        compose.onNodeWithText("Saved without a pin").performScrollTo().assertIsDisplayed()
+        compose.runOnIdle { assertNull(dao.rows.value.single().latitude) }
+    }
+    @Test fun closingLocationDisclaimerCancelsRecording() {
+        locationServicesEnabled = false
+        start()
+        compose.onNodeWithContentDescription("Record reading").performClick()
+        compose.onNodeWithText("Location is off").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Close recording status").performClick()
+        compose.onNodeWithText("Location is off").assertDoesNotExist()
+        compose.runOnIdle {
+            assertFalse(model.uiState.value.recording)
+            assertTrue(dao.rows.value.isEmpty())
+        }
+        compose.onNodeWithContentDescription("Record reading").performClick()
+        compose.onNodeWithText("Location is off").assertIsDisplayed()
+    }
+    @Test fun returningFromLocationSettingsRechecksBeforeRecording() {
+        locationServicesEnabled = false
+        start()
+        compose.runOnIdle { model.setIncludeSpeedTest(false) }
+        compose.onNodeWithContentDescription("Record reading").performClick()
+        compose.onNodeWithText("Turn on location").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertTrue(locationSettingsOpened)
+            model.onAppBackgrounded()
+            model.onLocationSettingsResult()
+        }
+        compose.onNodeWithText("Location is off").assertIsDisplayed()
+        compose.runOnIdle { assertTrue(dao.rows.value.isEmpty()) }
+        compose.onNodeWithText("Turn on location").performScrollTo().performClick()
+        compose.runOnIdle {
+            locationServicesEnabled = true
+            location = LocationResult.Candidate(LocationFix(13.78421, 121.07428, 8f, 99_000))
+            model.onLocationSettingsResult()
+        }
+        compose.waitUntil(5000) { model.uiState.value.capturePhase == CapturePhase.SAVED }
+        compose.onNodeWithText("Saved with a map pin").performScrollTo().assertIsDisplayed()
+    }
     @Test fun capturedMobileGenerationAppearsInResultListAndDetails() {
         sample = sample.copy(mobileGeneration = MobileGeneration.FIVE_G)
         start()
@@ -243,11 +293,14 @@ class SagapMoAppTest {
     private val dao = UiDao()
     private var sample = SignalSample(ConnectionType.MOBILE, 3, SignalUnit.ANDROID_LEVEL, Rating.GOOD, 1000, 1_794_883_320_000, 100_000)
     private var location: LocationResult = LocationResult.Missing(NoLocationReason.APPROXIMATE_ONLY)
+    private var locationServicesEnabled = true
+    private var locationSettingsOpened = false
     private val signal = object : SignalReader {
         override fun currentConnection() = ConnectionResult.Available(ConnectionSnapshot(1, sample.connectionType, 1))
         override suspend fun read() = SignalResult.Available(sample)
     }
     private lateinit var model: SagapMoViewModel
+    private val internetAvailability = MutableStateFlow(false)
     private var settingsOpened = false
     @Test fun campusLandmarkNamesRemainAccessible() {
         start(listOf(sampleReading()), baseStyle = com.sagapmo.app.map.CampusMapScreenTest.localStyle)
@@ -294,22 +347,23 @@ class SagapMoAppTest {
     }
     private fun start(
         rows: List<Reading> = emptyList(),
-        baseStyle: BaseStyle = BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty"),
+        baseStyle: BaseStyle? = BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty"),
         speedTest: SpeedTestEngine = HttpSpeedTestEngine(),
         locationGate: CompletableDeferred<Unit>? = null,
     ) {
         dao.rows.value = rows
         compose.runOnUiThread {
             model = SagapMoViewModel(signal, object : LocationReader {
-                override fun currentAccess() = LocationAccess(true, true, true)
+                override fun currentAccess() = LocationAccess(true, true, locationServicesEnabled)
                 override suspend fun locate(): LocationResult {
                     locationGate?.await()
                     return location
                 }
-            }, dao, speedTest)
+            }, dao, speedTest, internetAvailability = internetAvailability)
             model.setDestination(Destination.READINGS)
         }
-        compose.setContent { SagapMoTheme { SagapMoApp(model, onRecord = { model.record(false) }, onOpenSettings = { settingsOpened = true }, baseStyle = baseStyle) } }
+        compose.setContent { SagapMoTheme { SagapMoApp(model, onRecord = { model.record(false) }, onOpenSettings = { settingsOpened = true }, baseStyle = baseStyle,
+            onOpenLocationSettings = { locationSettingsOpened = model.claimLocationSettingsLaunch() }) } }
     }
     @Test fun floatingControlsExposeSelectionSettingsAndBusyState() {
         dao.gate = CompletableDeferred(); start()
@@ -327,6 +381,22 @@ class SagapMoAppTest {
         compose.waitUntil(5000) { model.uiState.value.capturePhase == CapturePhase.SAVING }
         compose.onNodeWithContentDescription("Recording…").assertIsNotEnabled()
         compose.runOnIdle { dao.gate!!.complete(Unit) }
+    }
+    @Test fun reconnectClearsOfflineCoverageNoticeInTheApp() {
+        val reading = sampleReading().copy(latitude = 13.9, longitude = 121.2)
+        start(listOf(reading), baseStyle = null)
+        compose.runOnIdle { model.showOnMap(reading) }
+        val notice = "Outside the offline campus map. Use Return to campus overview."
+        compose.waitUntil(20_000) { compose.onAllNodesWithText(notice).fetchSemanticsNodes().isNotEmpty() }
+        compose.runOnIdle { internetAvailability.value = true }
+        compose.waitUntil(45_000) {
+            compose.onAllNodesWithTag("map-ready").fetchSemanticsNodes().isNotEmpty() &&
+                compose.onAllNodesWithText(notice).fetchSemanticsNodes().isEmpty()
+        }
+        compose.onNodeWithTag("pin-test-wifi").assertIsDisplayed()
+        compose.runOnIdle { internetAvailability.value = false }
+        compose.waitUntil(20_000) { compose.onAllNodesWithText(notice).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("pin-test-wifi").assertIsDisplayed()
     }
     @Test fun emptyDatabaseExplainsFirstReading() {
         start(); compose.onNodeWithText("No readings yet").assertIsDisplayed()

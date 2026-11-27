@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.*
 
 import com.sagapmo.app.speedtest.*
 
-enum class CapturePhase { IDLE, CHECKING_CONNECTION, AWAITING_PERMISSION, LOCATING, ACQUIRING_SIGNAL, RUNNING_SPEED_TEST, SAVING, SAVE_FAILED, SAVED, FAILED, INTERRUPTED }
+enum class CapturePhase { IDLE, CHECKING_CONNECTION, AWAITING_LOCATION_SERVICES, AWAITING_PERMISSION, LOCATING, ACQUIRING_SIGNAL, RUNNING_SPEED_TEST, SAVING, SAVE_FAILED, SAVED, FAILED, INTERRUPTED }
 enum class Destination { MAP, READINGS }
 sealed interface ReadingsState {
     data object Loading : ReadingsState
@@ -29,6 +29,7 @@ data class AppUiState(
     val focusedReadingId: String? = null,
     val captureVisible: Boolean = false,
     val permissionLaunched: Boolean = false,
+    val locationSettingsLaunched: Boolean = false,
     val descriptionSavingId: String? = null,
     val descriptionErrorId: String? = null,
     val includeSpeedTest: Boolean = true,
@@ -37,10 +38,12 @@ data class AppUiState(
     val use3dMap: Boolean = false,
     val settingsVisible: Boolean = false,
     val alwaysCollapseAdvancedInfo: Boolean = true,
+    val networkRecoveryCount: Int = 0,
+    val internetAvailable: Boolean = false,
 ) {
     val allReadings get() = (readingsState as? ReadingsState.Loaded)?.readings.orEmpty()
     val visibleReadings get() = allReadings.filter { filter == null || it.connectionType == filter }
-    val recording get() = capturePhase in setOf(CapturePhase.CHECKING_CONNECTION, CapturePhase.AWAITING_PERMISSION, CapturePhase.LOCATING, CapturePhase.ACQUIRING_SIGNAL, CapturePhase.RUNNING_SPEED_TEST, CapturePhase.SAVING)
+    val recording get() = capturePhase in setOf(CapturePhase.CHECKING_CONNECTION, CapturePhase.AWAITING_LOCATION_SERVICES, CapturePhase.AWAITING_PERMISSION, CapturePhase.LOCATING, CapturePhase.ACQUIRING_SIGNAL, CapturePhase.RUNNING_SPEED_TEST, CapturePhase.SAVING)
 }
 
 class SagapMoViewModel(
@@ -53,6 +56,7 @@ class SagapMoViewModel(
     initialIncludeSpeedTest: Boolean = true,
     initialAlwaysCollapseAdvancedInfo: Boolean = true,
     private val onSavePreference: ((key: String, value: Boolean) -> Unit)? = null,
+    internetAvailability: Flow<Boolean> = emptyFlow(),
 ) : ViewModel() {
     private val state = MutableStateFlow(
         AppUiState(
@@ -64,25 +68,69 @@ class SagapMoViewModel(
     val uiState = state.asStateFlow()
     private var operationId: String? = null
     private var operationJob: Job? = null
+    private var needsLocationPermissionPrompt = false
     private var readingsJob: Job? = null
     private val descriptionJobs = mutableMapOf<String, Job>()
 
-    init { retryReadings() }
+    init {
+        retryReadings()
+        viewModelScope.launch {
+            internetAvailability.distinctUntilChanged().collect { available ->
+                state.update { current ->
+                    val recovered = if (available && current.capturePhase == CapturePhase.FAILED && current.captureError == CaptureError.NO_CONNECTION)
+                        current.copy(capturePhase = CapturePhase.IDLE, captureError = null, captureVisible = false)
+                    else current
+                    recovered.copy(internetAvailable = available,
+                        networkRecoveryCount = current.networkRecoveryCount + if (available) 1 else 0)
+                }
+            }
+        }
+    }
 
     fun record(needsPermissionPrompt: Boolean, includeSpeedTest: Boolean = state.value.includeSpeedTest) {
         if (state.value.recording || state.value.pendingSave != null) return
+        needsLocationPermissionPrompt = needsPermissionPrompt
         operationId = UUID.randomUUID().toString()
         state.update { it.copy(capturePhase = CapturePhase.CHECKING_CONNECTION, captureError = null,
             savedReading = null, captureVisible = true, permissionLaunched = false, selectedReading = null,
-            includeSpeedTest = includeSpeedTest, speedTestProgress = null) }
+            includeSpeedTest = includeSpeedTest, speedTestProgress = null, locationSettingsLaunched = false) }
         operationJob = viewModelScope.launch {
             when (val connection = withContext(ioDispatcher) { signalReader.currentConnection() }) {
                 is ConnectionResult.Failed -> fail(connection.error)
-                is ConnectionResult.Available -> if (needsPermissionPrompt) {
-                    state.update { it.copy(capturePhase = CapturePhase.AWAITING_PERMISSION) }
-                } else acquire()
+                is ConnectionResult.Available -> if (!locationReader.currentAccess().servicesEnabled) {
+                    state.update { it.copy(capturePhase = CapturePhase.AWAITING_LOCATION_SERVICES) }
+                } else continueWithLocation()
             }
         }
+    }
+
+    private suspend fun continueWithLocation() {
+        if (needsLocationPermissionPrompt) {
+            state.update { it.copy(capturePhase = CapturePhase.AWAITING_PERMISSION) }
+        } else {
+            acquire()
+        }
+    }
+
+    fun claimLocationSettingsLaunch(): Boolean {
+        if (state.value.capturePhase != CapturePhase.AWAITING_LOCATION_SERVICES || state.value.locationSettingsLaunched) return false
+        state.update { it.copy(locationSettingsLaunched = true) }
+        return true
+    }
+
+    fun onLocationSettingsResult() {
+        if (state.value.capturePhase != CapturePhase.AWAITING_LOCATION_SERVICES || !state.value.locationSettingsLaunched) return
+        state.update { it.copy(locationSettingsLaunched = false) }
+        if (locationReader.currentAccess().servicesEnabled) {
+            state.update { it.copy(capturePhase = CapturePhase.LOCATING) }
+            operationJob = viewModelScope.launch { continueWithLocation() }
+        }
+    }
+
+    fun continueWithoutLocation() {
+        if (state.value.capturePhase != CapturePhase.AWAITING_LOCATION_SERVICES) return
+        state.update { it.copy(capturePhase = CapturePhase.LOCATING, locationSettingsLaunched = false) }
+        operationJob = viewModelScope.launch { acquire(skipLocation = true) }
     }
 
     fun setUse3dMap(enabled: Boolean) {
@@ -120,9 +168,9 @@ class SagapMoViewModel(
         operationJob = viewModelScope.launch { acquire() }
     }
 
-    private suspend fun acquire() {
+    private suspend fun acquire(skipLocation: Boolean = false) {
         state.update { it.copy(capturePhase = CapturePhase.LOCATING) }
-        val location = locationReader.locate()
+        val location = if (skipLocation) LocationResult.Missing(NoLocationReason.LOCATION_DISABLED) else locationReader.locate()
         state.update { it.copy(capturePhase = CapturePhase.ACQUIRING_SIGNAL) }
         when (val signal = signalReader.read()) {
             is SignalResult.Failed -> fail(signal.error)
@@ -198,7 +246,7 @@ class SagapMoViewModel(
 
     fun onAppBackgrounded() {
         val current = state.value
-        if (current.recording && current.capturePhase !in setOf(CapturePhase.AWAITING_PERMISSION, CapturePhase.SAVING)) {
+        if (current.recording && current.capturePhase !in setOf(CapturePhase.AWAITING_LOCATION_SERVICES, CapturePhase.AWAITING_PERMISSION, CapturePhase.SAVING)) {
             operationJob?.cancel()
             state.update { it.copy(capturePhase = CapturePhase.INTERRUPTED, captureVisible = true) }
         }
@@ -211,7 +259,7 @@ class SagapMoViewModel(
         val current = state.value
         if (current.recording && current.capturePhase != CapturePhase.SAVING) {
             operationJob?.cancel()
-            state.update { it.copy(capturePhase = CapturePhase.INTERRUPTED, captureVisible = false, permissionLaunched = false) }
+            state.update { it.copy(capturePhase = CapturePhase.INTERRUPTED, captureVisible = false, permissionLaunched = false, locationSettingsLaunched = false) }
         }
     }
     fun setFilter(type: ConnectionType?) { state.update { it.copy(filter = type) } }

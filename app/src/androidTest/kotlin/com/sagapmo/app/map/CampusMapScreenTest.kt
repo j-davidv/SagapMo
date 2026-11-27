@@ -120,6 +120,72 @@ class CampusMapScreenTest {
         compose.onNodeWithText("Map could not load").assertDoesNotExist()
     }
     @Test fun tileFailureExposesRecovery() = resourceFailure("tile")
+    @Test fun restoredInternetRetriesFailedMapWithoutTappingRetry() {
+        var fail = true
+        var recoveries by mutableIntStateOf(0)
+        val provider = MapResourceProvider(accepts = { true }, load = {
+            if (fail) MapResourceLoad.Failed(MapResourceError.Server, "offline")
+            else MapResourceLoad.Bytes(localStyle.json.toByteArray())
+        })
+        val style = BaseStyle.Uri("sagapmo-test://${UUID.randomUUID()}/style")
+        compose.setContent {
+            SagapMoTheme {
+                CampusMapScreen(listOf(sampleReading()), null, {}, {}, baseStyle = style,
+                    resourceProvider = provider, networkRecoveryCount = recoveries)
+            }
+        }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("map-error").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription("Close map notice").performClick()
+        compose.runOnIdle { fail = false; recoveries++ }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("map-ready").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("map-error").assertDoesNotExist()
+        compose.onNodeWithTag("pin-test-wifi").assertExists()
+    }
+    @Test fun restoredInternetDoesNotReloadAReadyMap() {
+        var recoveries by mutableIntStateOf(0)
+        val requests = java.util.concurrent.atomic.AtomicInteger()
+        val provider = MapResourceProvider(accepts = { true }, load = {
+            requests.incrementAndGet()
+            MapResourceLoad.Bytes(localStyle.json.toByteArray())
+        })
+        val style = BaseStyle.Uri("sagapmo-test://${UUID.randomUUID()}/style")
+        compose.setContent {
+            SagapMoTheme {
+                CampusMapScreen(emptyList(), null, {}, {}, baseStyle = style,
+                    resourceProvider = provider, networkRecoveryCount = recoveries)
+            }
+        }
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("map-ready").fetchSemanticsNodes().isNotEmpty() }
+        val loadedRequests = requests.get()
+        compose.runOnIdle { recoveries++ }
+        compose.waitForIdle()
+        compose.onNodeWithTag("map-ready").assertExists()
+        assertEquals(loadedRequests, requests.get())
+    }
+    @Test fun reconnectDuringLoadingRetriesIfTheOldRequestFailsLate() {
+        var recoveries by mutableIntStateOf(0)
+        val gate = CompletableDeferred<Unit>()
+        val requests = java.util.concurrent.atomic.AtomicInteger()
+        val provider = MapResourceProvider(accepts = { true }, load = {
+            if (requests.incrementAndGet() == 1) {
+                gate.await()
+                MapResourceLoad.Failed(MapResourceError.Server, "late offline failure")
+            } else MapResourceLoad.Bytes(localStyle.json.toByteArray())
+        })
+        val style = BaseStyle.Uri("sagapmo-test://${UUID.randomUUID()}/style")
+        compose.setContent {
+            SagapMoTheme {
+                CampusMapScreen(emptyList(), null, {}, {}, baseStyle = style,
+                    resourceProvider = provider, networkRecoveryCount = recoveries)
+            }
+        }
+        compose.waitUntil(5000) { requests.get() == 1 }
+        compose.runOnIdle { recoveries++ }
+        compose.waitForIdle()
+        gate.complete(Unit)
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("map-ready").fetchSemanticsNodes().isNotEmpty() }
+        assertEquals(2, requests.get())
+    }
     @Test fun glyphFailureExposesRecovery() = resourceFailure("glyph")
     @Test fun spriteFailureExposesRecovery() = resourceFailure("sprite")
     private fun resourceFailure(kind: String) {

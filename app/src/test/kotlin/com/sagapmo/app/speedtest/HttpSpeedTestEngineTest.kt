@@ -125,6 +125,29 @@ class HttpSpeedTestEngineTest {
     }
 
     @Test
+    fun sameEngineCanRunAgainAfterInternetFailure() = runTest(testDispatcher) {
+        var offline = true
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            if (offline) throw java.io.IOException("offline")
+            chain.proceed(chain.request())
+        }.build()
+        val engine = localEngine(client)
+        val failed = engine.runSpeedTest().toList().last()
+        assertEquals(SpeedTestPhase.FAILED, failed.phase)
+        assertNull(failed.downloadMbps)
+        assertNull(failed.uploadMbps)
+
+        repeat(3) { server.enqueue(MockResponse()) }
+        server.enqueue(MockResponse().setBody("A".repeat(65536)))
+        server.enqueue(MockResponse().setHeader("cf-meta-upload-bytes", "65536"))
+        offline = false
+        val recovered = engine.runSpeedTest().toList().last()
+        assertEquals(SpeedTestPhase.COMPLETED, recovered.phase)
+        assertTrue(recovered.downloadMbps!! > 0.0)
+        assertTrue(recovered.uploadMbps!! > 0.0)
+    }
+
+    @Test
     fun runSpeedTestPreservesDownloadAfterUploadIsRejected() = runTest(testDispatcher) {
         repeat(3) { server.enqueue(MockResponse()) }
         server.enqueue(MockResponse().setBody("A".repeat(65536)))

@@ -15,6 +15,15 @@ const val MAP_STYLE_3D_URL = "sagapmo://campus/styles/liberty.json"
 
 val DefaultMapStyle2D: BaseStyle = BaseStyle.Uri(MAP_STYLE_2D_URL)
 val MapStyle3D: BaseStyle = BaseStyle.Uri(MAP_STYLE_3D_URL)
+val OnlineMapStyle2D: BaseStyle = BaseStyle.Uri("https://tiles.openfreemap.org/styles/bright")
+val OnlineMapStyle3D: BaseStyle = BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty")
+
+internal fun campusMapStyle(use3dMap: Boolean, internetAvailable: Boolean): BaseStyle =
+    if (internetAvailable) {
+        if (use3dMap) OnlineMapStyle3D else OnlineMapStyle2D
+    } else {
+        if (use3dMap) MapStyle3D else DefaultMapStyle2D
+    }
 
 internal fun campusMapNotice(style: BaseStyle, camera: CameraPosition): String? {
     if (style != DefaultMapStyle2D && style != MapStyle3D) return null

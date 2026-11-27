@@ -16,9 +16,82 @@ class SagapMoViewModelTest {
     private val location = FakeLocation()
     private val dao = FakeDao()
     private val speedTest = FakeSpeedTestEngine()
+    private val internetAvailability = MutableStateFlow(false)
     private lateinit var model: SagapMoViewModel
-    @Before fun setUp() { Dispatchers.setMain(dispatcher); model = SagapMoViewModel(signal, location, dao, speedTest, dispatcher) }
+    @Before fun setUp() {
+        Dispatchers.setMain(dispatcher)
+        model = SagapMoViewModel(signal, location, dao, speedTest, dispatcher, internetAvailability = internetAvailability)
+    }
     @After fun tearDown() { Dispatchers.resetMain() }
+    @Test fun internetAvailabilityTracksGoingOnlineAndOfflineAgain() = runTest(dispatcher) {
+        advanceUntilIdle()
+        assertFalse(model.uiState.value.internetAvailable)
+        internetAvailability.value = true; advanceUntilIdle()
+        assertTrue(model.uiState.value.internetAvailable)
+        internetAvailability.value = false; advanceUntilIdle()
+        assertFalse(model.uiState.value.internetAvailable)
+    }
+    @Test fun reconnectClearsOfflineFailureAndAllowsANewRecording() = runTest(dispatcher) {
+        signal.connection = ConnectionResult.Failed(CaptureError.NO_CONNECTION)
+        model.record(false); advanceUntilIdle()
+        assertEquals(CapturePhase.FAILED, model.uiState.value.capturePhase)
+        assertEquals(CaptureError.NO_CONNECTION, model.uiState.value.captureError)
+
+        signal.connection = ConnectionResult.Available(ConnectionSnapshot(1, ConnectionType.WIFI, null))
+        internetAvailability.value = true; advanceUntilIdle()
+        assertEquals(CapturePhase.IDLE, model.uiState.value.capturePhase)
+        assertNull(model.uiState.value.captureError)
+        assertFalse(model.uiState.value.captureVisible)
+        assertTrue(dao.rows.value.isEmpty())
+
+        model.record(false); advanceUntilIdle()
+        assertEquals(CapturePhase.SAVED, model.uiState.value.capturePhase)
+        assertEquals(1, dao.rows.value.size)
+    }
+    @Test fun onlyRestoredInternetRequestsMapRecovery() = runTest(dispatcher) {
+        advanceUntilIdle()
+        assertEquals(0, model.uiState.value.networkRecoveryCount)
+        internetAvailability.value = true; advanceUntilIdle()
+        assertEquals(1, model.uiState.value.networkRecoveryCount)
+        internetAvailability.value = true; advanceUntilIdle()
+        assertEquals(1, model.uiState.value.networkRecoveryCount)
+        internetAvailability.value = false; advanceUntilIdle()
+        assertEquals(1, model.uiState.value.networkRecoveryCount)
+        internetAvailability.value = true; advanceUntilIdle()
+        assertEquals(2, model.uiState.value.networkRecoveryCount)
+    }
+    @Test fun reconnectPreservesActiveCaptureAndDoesNotDuplicateIt() = runTest(dispatcher) {
+        location.gate = CompletableDeferred()
+        model.record(false); runCurrent()
+        assertEquals(CapturePhase.LOCATING, model.uiState.value.capturePhase)
+        internetAvailability.value = true; runCurrent()
+        assertEquals(CapturePhase.LOCATING, model.uiState.value.capturePhase)
+        location.gate!!.complete(Unit); advanceUntilIdle()
+        assertEquals(CapturePhase.SAVED, model.uiState.value.capturePhase)
+        assertEquals(1, dao.rows.value.size)
+        assertEquals(1, signal.readCalls)
+    }
+    @Test fun reconnectPreservesPendingSaveAndNavigation() = runTest(dispatcher) {
+        dao.failSave = true
+        model.record(false); advanceUntilIdle()
+        val pending = requireNotNull(model.uiState.value.pendingSave)
+        model.setDestination(Destination.READINGS)
+        model.setFilter(ConnectionType.WIFI)
+        internetAvailability.value = true; advanceUntilIdle()
+        assertEquals(CapturePhase.SAVE_FAILED, model.uiState.value.capturePhase)
+        assertEquals(pending, model.uiState.value.pendingSave)
+        assertEquals(Destination.READINGS, model.uiState.value.destination)
+        assertEquals(ConnectionType.WIFI, model.uiState.value.filter)
+        assertEquals(1, dao.saves)
+    }
+    @Test fun reconnectDoesNotHideOtherCaptureFailures() = runTest(dispatcher) {
+        signal.connection = ConnectionResult.Failed(CaptureError.VPN_ACTIVE)
+        model.record(false); advanceUntilIdle()
+        internetAvailability.value = true; advanceUntilIdle()
+        assertEquals(CapturePhase.FAILED, model.uiState.value.capturePhase)
+        assertEquals(CaptureError.VPN_ACTIVE, model.uiState.value.captureError)
+        assertTrue(model.uiState.value.captureVisible)
+    }
     @Test fun descriptionAutoSaveKeepsLatestTextAfterDetailsClose() = runTest(dispatcher) {
         model.record(false); advanceUntilIdle()
         val id = dao.rows.value.single().id
@@ -45,6 +118,84 @@ class SagapMoViewModelTest {
     @Test fun doubleTapCreatesOneOperation() = runTest(dispatcher) {
         model.record(false); model.record(false); advanceUntilIdle()
         assertEquals(1, dao.rows.value.size); assertEquals(CapturePhase.SAVED, model.uiState.value.capturePhase)
+    }
+    @Test fun locationOffWaitsForUserBeforeMeasuringOrSaving() = runTest(dispatcher) {
+        location.access = LocationAccess(true, true, false)
+        location.result = LocationResult.Missing(NoLocationReason.LOCATION_DISABLED)
+        model.record(false); model.record(false); advanceUntilIdle()
+        assertTrue(model.uiState.value.recording)
+        assertTrue(model.uiState.value.captureVisible)
+        assertEquals(0, signal.readCalls)
+        assertTrue(dao.rows.value.isEmpty())
+    }
+    @Test fun continuingWithoutLocationSkipsPermissionAndLocationRequestsAndSavesOnce() = runTest(dispatcher) {
+        location.access = LocationAccess(true, true, false)
+        location.gate = CompletableDeferred()
+        model.record(true); advanceUntilIdle()
+        model.continueWithoutLocation(); model.continueWithoutLocation(); advanceUntilIdle()
+        val saved = dao.rows.value.single()
+        assertEquals(CapturePhase.SAVED, model.uiState.value.capturePhase)
+        assertEquals(NoLocationReason.LOCATION_DISABLED, saved.noLocationReason)
+        assertNull(saved.latitude)
+        assertNull(saved.longitude)
+        assertEquals(1, signal.readCalls)
+    }
+    @Test fun locationSettingsReturnWithLocationStillOffRequiresAnotherChoice() = runTest(dispatcher) {
+        location.access = LocationAccess(true, true, false)
+        model.record(false); advanceUntilIdle()
+        assertTrue(model.claimLocationSettingsLaunch())
+        assertFalse(model.claimLocationSettingsLaunch())
+        model.onAppBackgrounded()
+        model.onLocationSettingsResult(); advanceUntilIdle()
+        assertEquals(CapturePhase.AWAITING_LOCATION_SERVICES, model.uiState.value.capturePhase)
+        assertFalse(model.uiState.value.locationSettingsLaunched)
+        assertTrue(dao.rows.value.isEmpty())
+        assertEquals(0, signal.readCalls)
+        assertTrue(model.claimLocationSettingsLaunch())
+    }
+    @Test fun turningLocationOnContinuesThePendingCaptureOnce() = runTest(dispatcher) {
+        location.access = LocationAccess(true, true, false)
+        model.record(false); advanceUntilIdle()
+        assertTrue(model.claimLocationSettingsLaunch())
+        model.onAppBackgrounded()
+        location.access = LocationAccess(true, true, true)
+        location.result = LocationResult.Candidate(LocationFix(13.78421, 121.07428, 8f, 99_000))
+        model.onLocationSettingsResult(); model.onLocationSettingsResult(); advanceUntilIdle()
+        assertEquals(13.78421, dao.rows.value.single().latitude!!, 0.0)
+        assertEquals(1, signal.readCalls)
+        assertFalse(model.uiState.value.locationSettingsLaunched)
+    }
+    @Test fun turningLocationOnStillRequestsAppPermissionWhenNeeded() = runTest(dispatcher) {
+        location.access = LocationAccess(false, false, false)
+        model.record(true); advanceUntilIdle()
+        assertEquals(CapturePhase.AWAITING_LOCATION_SERVICES, model.uiState.value.capturePhase)
+        assertTrue(model.claimLocationSettingsLaunch())
+        location.access = LocationAccess(false, false, true)
+        model.onLocationSettingsResult(); advanceUntilIdle()
+        assertEquals(CapturePhase.AWAITING_PERMISSION, model.uiState.value.capturePhase)
+        assertTrue(dao.rows.value.isEmpty())
+        model.onPermissionResult(); advanceUntilIdle()
+        assertEquals(1, dao.rows.value.size)
+    }
+    @Test fun cancellingLocationDisclaimerDoesNotCaptureAndNextAttemptAsksAgain() = runTest(dispatcher) {
+        location.access = LocationAccess(true, true, false)
+        model.record(false); advanceUntilIdle()
+        model.cancelCapture()
+        model.onLocationSettingsResult(); model.continueWithoutLocation(); advanceUntilIdle()
+        assertFalse(model.uiState.value.captureVisible)
+        assertFalse(model.uiState.value.recording)
+        assertEquals(0, signal.readCalls)
+        model.record(false); advanceUntilIdle()
+        assertEquals(CapturePhase.AWAITING_LOCATION_SERVICES, model.uiState.value.capturePhase)
+    }
+    @Test fun locationOffStillReportsConnectionFailureWithoutOfferingCapture() = runTest(dispatcher) {
+        location.access = LocationAccess(true, true, false)
+        signal.connection = ConnectionResult.Failed(CaptureError.NO_CONNECTION)
+        model.record(false); advanceUntilIdle()
+        assertEquals(CapturePhase.FAILED, model.uiState.value.capturePhase)
+        assertEquals(CaptureError.NO_CONNECTION, model.uiState.value.captureError)
+        assertFalse(model.claimLocationSettingsLaunch())
+        assertTrue(dao.rows.value.isEmpty())
     }
     @Test fun permissionContinuationRunsOnce() = runTest(dispatcher) {
         model.record(true); advanceUntilIdle()
@@ -234,7 +385,8 @@ private class FakeLocation : LocationReader {
     var gate: CompletableDeferred<Unit>? = null
     var cancelled = false
     var result: LocationResult = LocationResult.Missing(NoLocationReason.PERMISSION_DENIED)
-    override fun currentAccess() = LocationAccess(true, true, true)
+    var access = LocationAccess(true, true, true)
+    override fun currentAccess() = access
     override suspend fun locate(): LocationResult = try { gate?.await(); result }
         catch (error: CancellationException) { cancelled = true; throw error }
 }
