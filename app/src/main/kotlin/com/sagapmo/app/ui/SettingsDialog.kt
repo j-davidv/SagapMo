@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.sagapmo.app.AppUiState
@@ -26,6 +27,7 @@ internal fun SettingsDialog(
     onToggleAlwaysCollapseAdvanced: (Boolean) -> Unit,
     onOpenSystemSettings: () -> Unit,
 ) {
+    val optionTitleStyle = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp, fontWeight = FontWeight.Medium)
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(
             shape = RoundedCornerShape(20.dp),
@@ -82,8 +84,7 @@ internal fun SettingsDialog(
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     "2D Map (Recommended)",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium
+                                    style = optionTitleStyle
                                 )
                                 Text(
                                     "Smooth, fast rendering with lower memory & battery consumption.",
@@ -114,11 +115,10 @@ internal fun SettingsDialog(
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     "3D Map",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium
+                                    style = optionTitleStyle
                                 )
                                 Text(
-                                    "Renders 3D building extrusions. May cause lag on emulators.",
+                                    "Renders 3D building extrusions.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -152,8 +152,7 @@ internal fun SettingsDialog(
                             Column(Modifier.weight(1f).padding(end = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     "Measure Speed During Capture",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium
+                                    style = optionTitleStyle
                                 )
                                 Text(
                                     "Up to 10 seconds on Wi-Fi or 5 seconds on mobile data per phase. Each phase uses up to 150 MB.",
@@ -194,8 +193,7 @@ internal fun SettingsDialog(
                             Column(Modifier.weight(1f).padding(end = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     "Always collapse Advanced Information",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium
+                                    style = optionTitleStyle
                                 )
                                 Text(
                                     "When opening Reading details, keep latency, jitter, coordinates, and accuracy collapsed.",

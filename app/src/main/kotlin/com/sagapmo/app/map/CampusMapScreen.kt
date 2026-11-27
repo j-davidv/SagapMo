@@ -168,7 +168,7 @@ internal val CampusCamera = CameraPosition(center = Position(121.07428, 13.78421
                 .padding(top = maxOf(topOverlayHeight, 16.dp), end = 16.dp))
             Surface(Modifier.align(Alignment.BottomEnd).padding(bottom = bottomOverlayHeight + 8.dp, end = 16.dp), shape = RoundedCornerShape(12.dp), shadowElevation = 3.dp) {
                 AppTooltip("Return to campus overview") {
-                    IconButton(onClick = { map.setCameraPosition(CampusCamera) }, modifier = Modifier.size(48.dp)) {
+                    IconButton(onClick = { map.setCameraPosition(CampusCamera) }, modifier = Modifier.size(48.dp), shape = RoundedCornerShape(12.dp)) {
                         AppIcon(AppSymbol.TARGET, "Return to campus overview")
                     }
                 }

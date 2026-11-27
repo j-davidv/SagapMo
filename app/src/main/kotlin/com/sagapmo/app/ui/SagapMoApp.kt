@@ -3,7 +3,6 @@ package com.sagapmo.app.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -12,11 +11,11 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
@@ -182,12 +181,15 @@ import org.maplibre.compose.style.BaseStyle
                     }
                     val selected = state.destination == destination
                     AppTooltip(if (destination == Destination.MAP) "Map" else "Readings") {
-                        Surface(Modifier.size(52.dp).selectable(selected, onClick = { onDestination(destination) }, role = Role.Tab)
-                            .semantics { contentDescription = if (destination == Destination.MAP) "Map" else "Readings" },
-                            shape = CircleShape, color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                            contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) {
-                            Box(contentAlignment = Alignment.Center) {
-                                AppIcon(if (destination == Destination.MAP) AppSymbol.HOME else AppSymbol.LIST)
+                        IconButton(onClick = { onDestination(destination) }, modifier = Modifier.size(60.dp)
+                            .semantics { this.selected = selected; role = Role.Tab }, shape = CircleShape) {
+                            Surface(Modifier.size(52.dp), shape = CircleShape,
+                                color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                                contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    AppIcon(if (destination == Destination.MAP) AppSymbol.HOME else AppSymbol.LIST,
+                                        if (destination == Destination.MAP) "Map" else "Readings")
+                                }
                             }
                         }
                     }
